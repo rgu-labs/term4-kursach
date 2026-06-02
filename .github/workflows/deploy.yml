@@ -48,8 +48,9 @@ jobs:
       - name: Build GLEW, imgui & implot (static libs)
         run: |
           # GLEW (needed by imgui OpenGL3 backend)
-          git clone --depth 1 --branch glew-2.2.0 \
-            https://github.com/nigels-com/glew.git /tmp/glew
+          curl -sL https://github.com/nigels-com/glew/releases/download/glew-2.2.0/glew-2.2.0.tgz \
+            | tar xz -C /tmp
+          mv /tmp/glew-2.2.0 /tmp/glew
           cd /tmp/glew
           g++ -std=c++11 -c -O2 -DGLEW_STATIC \
             -Iinclude src/glew.c
