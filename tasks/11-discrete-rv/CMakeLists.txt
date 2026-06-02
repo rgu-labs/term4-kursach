@@ -18,6 +18,7 @@ target_link_libraries(${APP_NAME} PRIVATE
             imgui
             implot
             GL
+            GLEW
             dl
             pthread
 )
