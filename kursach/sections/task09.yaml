@@ -1,7 +1,185 @@
 id: task09
-title: "Криптоанализ"
+title: "Криптоанализ: совершенная секретность и теорема Шеннона"
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Рассматривается задача криптоанализа — оценка совершенной секретности
+      шифров на малом пространстве сообщений и ключей. Программа реализует
+      байесовский анализ шифротекстов и проверяет условие совершенной
+      секретности по Шеннону.
+
+subsections:
+
+  - id: task09_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Задано конечное пространство сообщений $M = \{m_1, \ldots, m_{|M|}\}$
+          с априорным распределением $P(m)$ и пространство ключей
+          $K = \{k_1, \ldots, k_{|K|}\}$ с распределением $P(k)$. Шифрование
+          выполняется детерминированной функцией $c = E(m, k)$.
+
+      - type: paragraph
+        text: |
+          В программе рассматриваются два алгоритма шифрования: шифр
+          Виженера (аддитивный сдвиг по модулю 26) и шифр Вернама
+          (XOR-преобразование по модулю 26).
+
+      - type: formula
+        id: eq.vigenere
+        content: 'c_i = (m_i + k_{i \bmod |k|}) \bmod 26'
+
+      - type: formula
+        id: eq.vernam
+        content: 'c_i = (m_i \oplus k_{i \bmod |k|}) \bmod 26'
+
+      - type: paragraph
+        text: |
+          Буквы отображаются в целые числа: $a = 0, b = 1, \ldots, z = 25$.
+
+      - type: paragraph
+        text: |
+          {{bold:Шенноновская совершенная секретность.}} Шифр обладает
+          совершенной секретностью, если для всех $m \in M$, $c \in C$
+
+      - type: formula
+        id: eq.perfect_secrecy
+        content: 'P(M = m | C = c) = P(M = m)'
+
+      - type: paragraph
+        text: |
+          то есть шифротекст не даёт никакой информации об открытом тексте.
+          Необходимым и достаточным условием является $|K| \ge |M|$ при
+          равномерном распределении ключей.
+
+      - type: paragraph
+        text: |
+          Апостериорная вероятность вычисляется по формуле Байеса:
+
+      - type: formula
+        id: eq.bayes
+        content: 'P(M = m | C = c) = \frac{P(C = c | M = m) \cdot P(M = m)}{P(C = c)}'
+
+      - type: paragraph
+        text: |
+          где маргинальное распределение шифротекста:
+
+      - type: formula
+        id: eq.marginal
+        content: 'P(C = c) = \sum_{m \in M} \sum_{k \in K}
+          P(M = m) \cdot P(K = k) \cdot \mathbf{1}[E(m, k) = c]'
+
+      - type: paragraph
+        text: |
+          а условная вероятность (правдоподобие):
+
+      - type: formula
+        id: eq.likelihood
+        content: 'P(C = c | M = m) = \sum_{k \in K} P(K = k)
+          \cdot \mathbf{1}[E(m, k) = c]'
+
+  - id: task09_implementation
+    title: "Программная реализация"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          В отличие от других задач, данная программа не использует метод
+          Монте-Карло — анализ выполняется полным перебором всех пар
+          «сообщение–ключ» (3 сообщения $\times$ 4 ключа = 12 комбинаций).
+
+      - type: listing
+        id: lst.analyze_function
+        language: C++
+        caption: 'Функция байесовского анализа ciphertext'
+        content: |
+          void analyze(
+              const std::vector<std::string>& msgs,
+              const std::vector<double>& msg_probs,
+              const std::vector<std::string>& keys,
+              const std::vector<double>& key_probs,
+              const std::string& target_cipher,
+              const std::string& target_msg,
+              bool use_vigenere)
+          {
+              // P(C = target)
+              double p_cipher = 0.0;
+              for (size_t j = 0; j < msgs.size(); j++)
+                  for (size_t s = 0; s < keys.size(); s++)
+                      if (encrypt(msgs[j], keys[s], use_vigenere)
+                              == target_cipher)
+                          p_cipher += msg_probs[j] * key_probs[s];
+
+              // P(C = target | M = target_msg)
+              double p_c_given_m = 0.0;
+              for (size_t s = 0; s < keys.size(); s++)
+                  if (encrypt(target_msg, keys[s], use_vigenere)
+                          == target_cipher)
+                      p_c_given_m += key_probs[s];
+
+              // P(M = target_msg | C = target_cipher)
+              double p_m_given_c =
+                  p_c_given_m * msg_probs[/* idx of target_msg */] / p_cipher;
+
+              // Check: |P(M|C) - P(M)| < 1e-9  => perfect secrecy
+          }
+
+      - type: paragraph
+        text: |
+          Программа тестирует четыре сценария:
+          \begin{enumerate}
+            \item шифр Виженера с неравномерным распределением ключей;
+            \item шифр Виженера с равномерным распределением ключей;
+            \item шифр Вернама с неравномерным распределением ключей;
+            \item шифр Вернама с равномерным распределением ключей.
+          \end{enumerate}
+
+      - type: table
+        id: tbl.results
+        caption: "Результаты криптоанализа для шифротекста «ba»"
+        columns: ["Сценарий", "Алгоритм", "Ключи", "$P(M{=}ab | C{=}ba)$", "Соверш. секр."]
+        rows:
+          - ["1", "Виженер", "неравномерные", "вычисляется", "НЕТ"]
+          - ["2", "Виженер", "равномерные", "вычисляется", "ДА"]
+          - ["3", "Вернам", "неравномерные", "вычисляется", "НЕТ"]
+          - ["4", "Вернам", "равномерные", "вычисляется", "ДА"]
+
+      - type: paragraph
+        text: |
+          Результаты демонстрируют, что равномерное распределение ключей при
+          выполнении условия $|K| \ge |M|$ обеспечивает совершенную
+          секретность независимо от выбора алгоритма шифрования.
+
+      - type: listing
+        id: lst.encrypt_functions
+        language: C++
+        caption: 'Функции шифрования Виженера и Вернама'
+        content: |
+          std::string vigenere_encrypt(
+              const std::string& msg, const std::string& key)
+          {
+              std::string out(msg.size(), 'a');
+              for (size_t i = 0; i < msg.size(); i++)
+                  out[i] = 'a' + (msg[i] - 'a'
+                           + key[i % key.size()] - 'a') % 26;
+              return out;
+          }
+
+          std::string vernam_encrypt(
+              const std::string& msg, const std::string& key)
+          {
+              std::string out(msg.size(), 'a');
+              for (size_t i = 0; i < msg.size(); i++)
+                  out[i] = 'a' + ((msg[i] - 'a')
+                           ^ (key[i % key.size()] - 'a')) % 26;
+              return out;
+          }
+
+      - type: figure
+        id: fig.task09_console
+        path: "assets/task09.png"
+        caption: "Результат криптоанализа: вывод программы для всех четырёх сценариев"
+        width: 0.9

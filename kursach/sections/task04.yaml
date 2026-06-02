@@ -4,4 +4,295 @@ numbered: true
 body:
   - type: paragraph
     text: |
-      h
+      На координатной плоскости $xOy$ материальная точка движется с постоянным шагом $h$
+      по оси абсцисс, стартуя из точки $(0; Y)$. Закон движения по оси ординат определяется
+      случайной величиной $s$, принимающей значения $\{s_1, s_2, \ldots, s_n\}$.
+      Требуется смоделировать траекторию для различных законов распределения $s$,
+      эмпирически оценить вероятность $l$ пересечений оси абсцисс и предоставить
+      удобный графический интерфейс для визуализации и анализа.
+
+subsections:
+
+  - id: task04_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Положение точки на $i$-м шаге ($i = 1, 2, \ldots, N$) описывается рекуррентными
+          соотношениями:
+
+      - type: formula
+        id: eq.x_coord
+        content: 'x_i = x_{i-1} + h, \quad x_0 = 0'
+
+      - type: formula
+        id: eq.y_coord
+        content: 'y_i = y_{i-1} + s_i, \quad y_0 = Y'
+
+      - type: paragraph
+        text: |
+          где $s_i$ — значение случайной величины $s$ на $i$-м шаге,
+          $h$ — шаг по оси абсцисс, $Y$ — начальная ордината.
+
+      - type: paragraph
+        text: |
+          {{bold:Пересечение оси абсцисс.}} Траектория пересекает ось $Ox$ на шаге $i$,
+          если знаки $y_{i-1}$ и $y_i$ различны, либо $y_i = 0$ при $y_{i-1} \neq 0$.
+          Общее число пересечений $l$ подсчитывается за один проход:
+
+      - type: formula
+        id: eq.crossing_condition
+        content: 'l = \sum_{i=1}^{N} \mathbb{I}\big[ (y_{i-1} > 0 \land y_i < 0) \lor (y_{i-1} < 0 \land y_i > 0) \lor (y_i = 0 \land y_{i-1} \neq 0) \big]'
+
+      - type: paragraph
+        text: |
+          Эмпирическая вероятность ровно $l$ пересечений вычисляется по $C$ экспериментам:
+
+      - type: formula
+        id: eq.empirical_prob
+        content: 'P_{\text{emp}}(l) = \frac{|\{k \in [1, C] : l_k = l\}|}{C}'
+
+  - id: task04_distributions
+    title: "Законы распределения случайной величины $s$"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Случайная величина $s$ принимает значения $\{s_1, \ldots, s_n\}$ с вероятностями,
+          определяемыми выбранным законом распределения. Поддерживаются четыре
+          распределения:
+
+      - type: list
+        ordered: false
+        items:
+          - "{{bold:Равномерное (Uniform)}} — каждое значение $s_j$ выбирается с равной вероятностью $1/n$."
+          - '{{bold:Биномиальное (Binomial)}} — индекс $j$ выбирается по биномиальному закону $\operatorname{Bin}(m, p)$ с последующим приведением к диапазону $[0, n]$.'
+          - '{{bold:Конечное геометрическое (FiniteGeometric)}} — индекс $j$ выбирается по усечённому геометрическому распределению $P(j) \propto (1-p)^{j} p$.'
+          - '{{bold:Дискретное треугольное (DiscreteTriangular)}} — непрерывное треугольное распределение $\operatorname{Tri}(a, b, c)$ дискретизируется округлением до ближайшего значения $s_j$.'
+
+      - type: listing
+        id: lst.sample_step
+        language: C++
+        caption: "Генерация случайного шага $s$ в соответствии с законом распределения"
+        content: |
+          double PointWalkSimulation::sample_step() {
+              int n = (int)m_cfg.steps.size() - 1;
+              if (n < 0) return 0.0;
+
+              switch (m_cfg.dist) {
+              case Distribution::Uniform: {
+                  std::uniform_int_distribution<int> d(0, n);
+                  return m_cfg.steps[d(m_rng)];
+              }
+              case Distribution::Binomial: {
+                  std::binomial_distribution<int> d(m_cfg.binom_trials, m_cfg.binom_p);
+                  int k = d(m_rng) % (n + 1);
+                  return m_cfg.steps[k];
+              }
+              case Distribution::FiniteGeometric: {
+                  std::vector<double> weights(n + 1);
+                  double sum = 0.0;
+                  for (int i = 0; i <= n; i++) {
+                      weights[i] = std::pow(1.0 - m_cfg.geom_p, i) * m_cfg.geom_p;
+                      sum += weights[i];
+                  }
+                  for (auto& w : weights) w /= sum;
+                  std::discrete_distribution<int> d(weights.begin(), weights.end());
+                  return m_cfg.steps[d(m_rng)];
+              }
+              case Distribution::DiscreteTriangular: {
+                  // Inversion sampling for Triangular(a, peak, c)
+                  std::uniform_real_distribution<double> u01(0.0, 1.0);
+                  double u = u01(m_rng);
+                  double Fc = (m_cfg.tri_b - m_cfg.tri_a) / (m_cfg.tri_c - m_cfg.tri_a);
+                  double sample;
+                  if (u < Fc)
+                      sample = m_cfg.tri_a + std::sqrt(u * (m_cfg.tri_c - m_cfg.tri_a)
+                                                          * (m_cfg.tri_b - m_cfg.tri_a));
+                  else
+                      sample = m_cfg.tri_c - std::sqrt((1.0 - u) * (m_cfg.tri_c - m_cfg.tri_a)
+                                                          * (m_cfg.tri_c - m_cfg.tri_b));
+                  // Snap to nearest step value
+                  int best = 0;
+                  double bestDist = std::abs(m_cfg.steps[0] - sample);
+                  for (int i = 1; i <= n; i++) {
+                      double d = std::abs(m_cfg.steps[i] - sample);
+                      if (d < bestDist) { bestDist = d; best = i; }
+                  }
+                  return m_cfg.steps[best];
+              }
+              }
+              return 0.0;
+          }
+
+  - id: task04_simulation
+    title: "Ядро симуляции"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Класс {{code:PointWalkSimulation}} инкапсулирует параметры моделирования ($h$, $Y$,
+          набор шагов $\{s_j\}$, закон распределения) и генератор псевдослучайных чисел
+          {{code:std::mt19937}}. Метод {{code:run\_single()}} выполняет один эксперимент —
+          генерацию траектории из $N$ шагов — и возвращает вектор координат $(x_i, y_i)$
+          вместе с числом пересечений оси абсцисс.
+
+      - type: listing
+        id: lst.run_single
+        language: C++
+        caption: 'Метод run\_single() — генерация одной траектории'
+        content: |
+          WalkResult PointWalkSimulation::run_single() {
+              WalkResult r;
+              r.start_y = m_cfg.Y;
+              int steps = m_cfg.x_steps;
+              r.xs.reserve(steps + 1);
+              r.ys.reserve(steps + 1);
+
+              double x = 0.0, y = m_cfg.Y;
+              r.xs.push_back(x);
+              r.ys.push_back(y);
+              for (int i = 0; i < steps; i++) {
+                  x += m_cfg.h;
+                  y += sample_step();
+                  r.xs.push_back(x);
+                  r.ys.push_back(y);
+              }
+              r.crossings = count_crossings(r.ys);
+              return r;
+          }
+
+      - type: paragraph
+        text: |
+          Подсчёт пересечений реализован в статическом методе
+          {{code:count\_crossings()}}, который проходит по массиву ординат и учитывает
+          все смены знака, включая случаи, когда точка оказывается точно на оси.
+
+      - type: listing
+        id: lst.count_crossings
+        language: C++
+        caption: "Подсчёт пересечений оси абсцисс"
+        content: |
+          int PointWalkSimulation::count_crossings(const std::vector<double>& ys) {
+              int cnt = 0;
+              for (size_t i = 1; i < ys.size(); i++) {
+                  double a = ys[i - 1];
+                  double b = ys[i];
+                  if (a == 0.0 && b != 0.0) { cnt++; continue; }
+                  if (b == 0.0) { cnt++; continue; }
+                  if ((a > 0.0) != (b > 0.0)) cnt++;
+              }
+              return cnt;
+          }
+
+      - type: paragraph
+        text: |
+          Для пакетного анализа метод {{code:run\_batch(n)}} выполняет серию из $n$
+          экспериментов и возвращает вектор результатов. Эмпирическая вероятность
+          пересечений вычисляется как доля траекторий, в которых число пересечений
+          в точности равно заданному $l$ (или равно нулю для $l = 0$).
+
+      - type: listing
+        id: lst.batch_crossing_count
+        language: C++
+        caption: "Пакетный запуск и подсчёт вероятности"
+        content: |
+          std::vector<WalkResult> PointWalkSimulation::run_batch(int n) {
+              std::vector<WalkResult> results;
+              results.reserve(n);
+              for (int i = 0; i < n; i++)
+                  results.push_back(run_single());
+              return results;
+          }
+
+          // В контроллере:
+          int cnt = 0;
+          for (const auto& w : walks)
+              if (target_l == 0 ? w.crossings == 0 : w.crossings == target_l) cnt++;
+          double prob = (double)cnt / n;
+
+  - id: task04_config
+    title: "Конфигурационный файл"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Параметры моделирования загружаются из JSON-файла. Структура файла:
+
+      - type: listing
+        id: lst.config_json
+        language: C++
+        caption: "Пример конфигурационного файла config.json"
+        content: |
+          {
+              "h":              1.5,
+              "Y":              0.0,
+              "x_steps":        50,
+              "K":              20,
+              "l":              2,
+              "N_simulations":  500,
+              "distribution":   "uniform",
+              "steps":          [-2.0, -1.0, 0.0, 1.0, 2.0],
+              "binomial_trials": 4,
+              "binomial_p":      0.5,
+              "geometric_p":     0.4,
+              "triangular_a":     0.0,
+              "triangular_b":     0.5,
+              "triangular_c":     1.0
+          }
+
+      - type: paragraph
+        text: |
+          Поле {{code:distribution}} может принимать значения
+          {{code:"uniform"}}, {{code:"binomial"}}, {{code:"geometric"}},
+          {{code:"triangular"}}. Параметры, специфичные для каждого распределения,
+          игнорируются, если не соответствуют выбранному закону.
+
+  - id: task04_gui
+    title: "Графический интерфейс"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Приложение построено на Qt6 Quick. Интерфейс содержит боковую панель
+          управления и центральную область с графиком траектории.
+
+      - type: paragraph
+        text: |
+          {{bold:Панель управления}} позволяет настраивать:
+          шаг $h$, начальную ординату $Y$, число шагов $N$, размер лога $K$,
+          целевое число пересечений $l$, количество экспериментов в серии $C$,
+          закон распределения и его параметры, а также набор значений
+          $\{s_1, \ldots, s_n\}$.
+
+      - type: paragraph
+        text: |
+          {{bold:График}} (компонент {{code:TrajectoryChart}}) отображает ломаную
+          траектории $(x_i, y_i)$ и ось абсцисс. После пакетного запуска отображается
+          последняя сгенерированная траектория.
+
+      - type: paragraph
+        text: |
+          {{bold:Лог-записи}} — таблица $K$ последних экспериментов с колонками:
+          номер симуляции, число пересечений, начальная ордината, закон распределения.
+
+      - type: paragraph
+        text: |
+          {{bold:Результаты пакетного запуска:}} число траекторий с $l$ пересечениями
+          и эмпирическая вероятность. Пересечения подсчитываются асинхронно через
+          {{code:QtConcurrent::run}} для сохранения отзывчивости интерфейса.
+
+      - type: figure_group
+        id: fig.task04_results
+        caption: "Интерфейс приложения и примеры траекторий"
+        layout: vertical
+        figures:
+          - path: "assets/task04_gui.png"
+            subcaption: "Интерфейс приложения: панель управления и график траектории"
+            width: 0.95
+
+          - path: "assets/task04_trajectories.png"
+            subcaption: "Примеры сгенерированных траекторий при различных законах распределения"
+            width: 0.95
+      - type: page_break

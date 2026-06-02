@@ -4,4 +4,209 @@ numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Дан отрезок $[0; M]$, $M > 0$, разбитый на отрезки длины $h$. На каждом
+      подотрезке определена случайная величина $\xi$, принимающая значения из
+      множества $\{0, \tau, 2\tau, \ldots, n\tau\}$. Конкретизация $\xi$ на всех
+      подотрезках порождает ступенчатую фигуру. Требуется для различных законов
+      распределения $\xi$ эмпирически оценить вероятность получения строго
+      возрастающей ступенчатой фигуры и предоставить интерфейс с пагинацией
+      для просмотра сгенерированных фигур.
+
+subsections:
+
+  - id: task06_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Отрезок $[0; M]$ разбивается точками $x_i = i \cdot h$,
+          $i = 0, 1, \ldots, N$, где $N = \lfloor M / h \rfloor$.
+          На каждом полуинтервале $(x_{i-1}, x_i]$ значение ступенчатой функции
+          равно $\xi_i \in \{0, \tau, 2\tau, \ldots, n\tau\}$.
+
+      - type: formula
+        id: eq.step_function
+        content: 'f(x) = \xi_i, \quad x \in (x_{i-1}, x_i], \quad i = 1, \ldots, N'
+
+      - type: paragraph
+        text: |
+          Ступенчатая фигура называется {{bold:строго возрастающей лестницей}},
+          если значения $\xi_i$ строго возрастают с ростом $i$:
+
+      - type: formula
+        id: eq.strictly_increasing
+        content: '\xi_1 < \xi_2 < \cdots < \xi_N'
+
+      - type: paragraph
+        text: |
+          Эмпирическая вероятность получается как доля строго возрастающих
+          фигур среди $C$ сгенерированных:
+
+      - type: formula
+        id: eq.task06_empirical_prob
+        content: 'P_{\text{inc}} = \frac{1}{C} \sum_{j=1}^{C} \mathbb{I}[\xi^{(j)}_1 < \cdots < \xi^{(j)}_N]'
+
+  - id: task06_simulation
+    title: "Ядро симуляции"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Класс {{code:StaircaseSimulation}} генерирует значения $\xi_i$ для всех
+          $N$ подотрезков согласно заданному закону распределения. Значения
+          дискретизированы по множеству $\{0, \tau, \ldots, n\tau\}$.
+          Генерация одного значения выполняется методом {{code:sample\_one()}},
+          который в зависимости от типа распределения выбирает индекс
+          $k \in [0, n]$ и возвращает $k \cdot \tau$.
+
+      - type: listing
+        id: lst.sample_one
+        language: C++
+        caption: 'Генерация одного значения $\xi_i$ в соответствии с законом распределения'
+        content: |
+          double StaircaseSimulation::sample_one() {
+              int n = m_cfg.n_values;
+              double tau = m_cfg.tau;
+
+              switch (m_cfg.dist) {
+              case Distribution::Uniform: {
+                  std::uniform_int_distribution<int> d(0, n);
+                  return d(m_rng) * tau;
+              }
+              case Distribution::Binomial: {
+                  std::binomial_distribution<int>
+                      d(m_cfg.binom_trials, m_cfg.binom_p);
+                  int k = d(m_rng);
+                  return (k % (n + 1)) * tau;
+              }
+              case Distribution::FiniteGeometric: {
+                  // truncated geometric: P(i) ∝ (1-p)^i * p
+                  std::vector<double> weights(n + 1);
+                  double sum = 0.0;
+                  for (int i = 0; i <= n; i++) {
+                      weights[i] = std::pow(1.0 - m_cfg.geom_p, i) * m_cfg.geom_p;
+                      sum += weights[i];
+                  }
+                  for (auto& w : weights) w /= sum;
+                  std::discrete_distribution<int> d(weights.begin(),
+                                                    weights.end());
+                  return d(m_rng) * tau;
+              }
+              case Distribution::DiscreteTriangular: {
+                  // Snap continuous Triangular(a,b,c) to nearest k*tau
+                  // ...
+                  return best * tau;
+              }
+              }
+              return 0.0;
+          }
+
+      - type: paragraph
+        text: |
+          Проверка на строгую монотонность выполняется за один линейный проход.
+
+      - type: listing
+        id: lst.check_increasing
+        language: C++
+        caption: "Проверка строгой возрастаемости ступенчатой фигуры"
+        content: |
+          bool StaircaseSimulation::check_strictly_increasing(
+              const std::vector<double>& v) {
+              for (size_t i = 1; i < v.size(); i++)
+                  if (v[i] <= v[i - 1]) return false;
+              return !v.empty();
+          }
+
+      - type: listing
+        id: lst.task06_run_batch
+        language: C++
+        caption: 'Методы run\_single() и run\_batch()'
+        content: |
+          Generation StaircaseSimulation::run_single() {
+              Generation g;
+              g.steps = sample_step_values();
+              g.is_strictly_increasing =
+                  check_strictly_increasing(g.steps);
+              return g;
+          }
+
+          std::vector<Generation> StaircaseSimulation::run_batch(int n) {
+              std::vector<Generation> results;
+              results.reserve(n);
+              for (int i = 0; i < n; i++)
+                  results.push_back(run_single());
+              return results;
+          }
+
+  - id: task06_config
+    title: "Конфигурационный файл"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Параметры моделирования задаются в JSON-файле:
+
+      - type: listing
+        id: lst.task06_config_json
+        language: C++
+        caption: "Пример config.json"
+        content: |
+          {
+              "M":              10,
+              "h":              1.0,
+              "tau":            1.0,
+              "n_values":       5,
+              "distribution":   "uniform",
+              "N_generations":  200,
+              "binomial_trials": 4,
+              "binomial_p":      0.5,
+              "geometric_p":     0.4,
+              "triangular_a":    0.0,
+              "triangular_b":    0.5,
+              "triangular_c":    1.0
+          }
+
+      - type: paragraph
+        text: |
+          Поле {{code:distribution}} принимает значения
+          {{code:"uniform"}}, {{code:"binomial"}}, {{code:"geometric"}},
+          {{code:"triangular"}}.
+
+  - id: task06_gui
+    title: "Графический интерфейс"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Приложение построено на Qt6 Quick. Боковая панель содержит настройки
+          параметров ($M$, $h$, $\tau$, $n$, закон распределения, число генераций)
+          и область статистики (число строго возрастающих фигур, эмпирическая
+          вероятность).
+
+      - type: paragraph
+        text: |
+          {{bold:Пагинация.}} После пакетного запуска сгенерированные ступенчатые
+          фигуры отображаются на сетке по 6 штук на страницу в компоненте
+          {{code:StaircaseChart}}. Навигация осуществляется кнопками «Вперёд/Назад»
+          и индикатором текущей страницы. Каждая фигура подписана индексом
+          и пометкой о строгой монотонности.
+
+      - type: paragraph
+        text: |
+          {{bold:Пакетный режим.}} $N$ генераций выполняются асинхронно через
+          {{code:QtConcurrent::run}}, интерфейс остаётся отзывчивым во время
+          расчёта. Результат — число возрастающих фигур и их доля.
+
+      - type: figure_group
+        id: fig.task06_results
+        caption: "Интерфейс приложения и примеры ступенчатых фигур"
+        layout: vertical
+        figures:
+          - path: "assets/task06_gui.png"
+            subcaption: "Интерфейс приложения: панель управления, статистика и сетка фигур"
+            width: 0.95
+
+          - path: "assets/task06_staircases.png"
+            subcaption: "Примеры ступенчатых фигур: возрастающие и невозрастающие"
+            width: 0.95

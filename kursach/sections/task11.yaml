@@ -1,7 +1,146 @@
 id: task11
-title: "Дискретная случайная величина"
+title: "Дискретная случайная величина и её числовые характеристики"
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Разработана библиотека для работы с произвольными дискретными случайными
+      величинами. Программа вычисляет числовые характеристики (математическое
+      ожидание, дисперсию, асимметрию, эксцесс) и визуализирует функцию
+      вероятности и функцию распределения.
+
+subsections:
+
+  - id: task11_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Дискретная случайная величина $X$ задаётся множеством пар
+          «значение–вероятность»:
+          $\{(x_1, p_1), (x_2, p_2), \ldots, (x_n, p_n)\}$, где
+          $p_i \ge 0$ и $\sum_{i=1}^{n} p_i = 1$.
+
+      - type: paragraph
+        text: |
+          {{bold:Функция вероятности (PMF):}}
+
+      - type: formula
+        id: eq.pmf
+        content: 'P(X = x_i) = p_i, \qquad i = 1, \ldots, n'
+
+      - type: paragraph
+        text: |
+          {{bold:Функция распределения (CDF):}}
+
+      - type: formula
+        id: eq.cdf
+        content: 'F(x_k) = P(X \le x_k) = \sum_{i=1}^{k} p_i'
+
+      - type: paragraph
+        text: |
+          {{bold:Числовые характеристики:}}
+
+      - type: formula
+        id: eq.expectation
+        content: '\mu = \mathbb{E}[X] = \sum_{i=1}^{n} x_i \cdot p_i'
+
+      - type: formula
+        id: eq.variance
+        content: '\sigma^2 = \mathbb{D}[X] = \sum_{i=1}^{n} (x_i - \mu)^2 \cdot p_i'
+
+      - type: formula
+        id: eq.skewness
+        content: '\gamma_1 = \frac{\mathbb{E}[(X - \mu)^3]}{\sigma^3}
+          = \frac{\sum_{i=1}^{n} (x_i - \mu)^3 \cdot p_i}{\sigma^3}'
+
+      - type: paragraph
+        text: |
+          Коэффициент асимметрии $\gamma_1$ характеризует скошенность
+          распределения: $\gamma_1 = 0$ для симметричных распределений,
+          $\gamma_1 > 0$ — правосторонняя асимметрия, $\gamma_1 < 0$ —
+          левосторонняя.
+
+      - type: formula
+        id: eq.kurtosis
+        content: '\gamma_2 = \frac{\mathbb{E}[(X - \mu)^4]}{\sigma^4} - 3
+          = \frac{\sum_{i=1}^{n} (x_i - \mu)^4 \cdot p_i}{\sigma^4} - 3'
+
+      - type: paragraph
+        text: |
+          Коэффициент эксцесса $\gamma_2$ (избыточный) характеризует
+          «остроту» пика распределения: $\gamma_2 = 0$ соответствует
+          нормальному распределению, $\gamma_2 > 0$ — островершинное,
+          $\gamma_2 < 0$ — плосковершинное.
+
+      - type: paragraph
+        text: |
+          {{bold:Операции над случайными величинами.}} Для независимых
+          дискретных случайных величин $X$ и $Y$ определены сумма
+          (свёртка) и произведение:
+
+      - type: formula
+        id: eq.convolution_sum
+        content: 'P(X + Y = z) = \sum_{x_i + y_j = z} p_i \cdot q_j'
+
+      - type: formula
+        id: eq.convolution_product
+        content: 'P(X \cdot Y = z) = \sum_{x_i \cdot y_j = z} p_i \cdot q_j'
+
+  - id: task11_implementation
+    title: "Программная реализация"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Класс {{code:DiscreteRandomVariable}} хранит распределение в виде
+          {{code:std::map<double, double>}} (отсортировано по значению) и
+          предоставляет методы для вычисления PMF, CDF и всех числовых
+          характеристик.
+
+      - type: listing
+        id: lst.class_interface
+        language: C++
+        caption: 'Интерфейс класса DiscreteRandomVariable'
+        content: |
+          class DiscreteRandomVariable {
+          public:
+              DiscreteRandomVariable(
+                  std::vector<std::pair<double, double>> data);
+
+              std::vector<std::pair<double, double>> pmf() const;
+              std::vector<std::pair<double, double>> cdf() const;
+
+              double expectation() const;
+              double variance() const;
+              double skewness() const;
+              double kurtosis() const;  // excess kurtosis
+
+              DiscreteRandomVariable operator+(
+                  const DiscreteRandomVariable& other) const;
+              DiscreteRandomVariable operator*(
+                  const DiscreteRandomVariable& other) const;
+              DiscreteRandomVariable operator*(double scalar) const;
+
+              void normalize();
+              void save_to_file(const std::string& path) const;
+              static DiscreteRandomVariable load_from_file(
+                  const std::string& path);
+
+          private:
+              std::map<double, double> m_data;
+              void validate() const;
+          };
+
+      - type: paragraph
+        text: |
+          Приложение построено на GLFW + ImGui + ImPlot и визуализирует три
+          графика: столбчатую диаграмму PMF, ступенчатую CDF и полигон
+          распределения.
+
+      - type: figure
+        id: fig.task11_gui
+        path: "assets/task11.png"
+        caption: "Визуализация дискретной случайной величины: PMF, CDF и полигон распределения"
+        width: 0.9

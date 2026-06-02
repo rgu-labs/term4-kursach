@@ -1,7 +1,140 @@
 id: task10
-title: "Подбрасывание монеты из кошелька"
+title: "Подбрасывание монеты из кошелька: байесовская вероятностная модель"
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Рассматривается байесовская задача: в кошельке находится $n$ монет,
+      ровно $k$ из которых — двуглавые (обе стороны — «орёл»). Наугад
+      выбирается одна монета и подбрасывается 4 раза. Требуется оценить
+      условную вероятность того, что четвёртый бросок выпадет «орлом» при
+      условии, что первые три броска также дали «орла».
+
+subsections:
+
+  - id: task10_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Пусть $D$ — событие «выбрана двуглавая монета», $F$ — событие
+          «выбрана честная монета». Априорные вероятности:
+
+      - type: formula
+        id: eq.prior
+        content: 'P(D) = \frac{k}{n}, \qquad P(F) = \frac{n - k}{n}'
+
+      - type: paragraph
+        text: |
+          Для двуглавой монеты $P(\text{орёл} \mid D) = 1$, для честной
+          $P(\text{орёл} \mid F) = 1/2$.
+
+      - type: paragraph
+        text: |
+          Вероятность выпадения трёх «орлов» подряд:
+
+      - type: formula
+        id: eq.three_heads
+        content: 'P(3H) = P(D) \cdot 1 + P(F) \cdot \left(\frac12\right)^3
+          = \frac{7k + n}{8n}'
+
+      - type: paragraph
+        text: |
+          Вероятность выпадения четырёх «орлов» подряд:
+
+      - type: formula
+        id: eq.four_heads
+        content: 'P(4H) = P(D) \cdot 1 + P(F) \cdot \left(\frac12\right)^4
+          = \frac{15k + n}{16n}'
+
+      - type: paragraph
+        text: |
+          Искомая условная вероятность по формуле Байеса:
+
+      - type: formula
+        id: eq.conditional
+        content: |-
+          P(\text{4-й орёл} \mid \text{первые 3 орла})
+          = \frac{P(4H)}{P(3H)}
+          = \frac{15k + n}{2(7k + n)}
+
+      - type: paragraph
+        text: |
+          Частные случаи:
+          \begin{itemize}
+            \item $k = 0$ (все монеты честные): $P = 1/2$ (броски независимы);
+            \item $k = n$ (все монеты двуглавые): $P = 1$;
+            \item $n = 10, k = 3$: $P = 55/62 \approx 0{,}8871$.
+          \end{itemize}
+
+  - id: task10_implementation
+    title: "Программная реализация"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Эксперимент реализован с использованием шаблонного класса
+          {{code:TaskRunner}}. Каждое испытание моделирует выбор монеты и
+          четыре последовательных броска.
+
+      - type: listing
+        id: lst.experiment
+        language: C++
+        caption: 'Лямбда-функция испытания: выбор монеты и четыре броска'
+        content: |
+          auto experiment = [n, k](auto& rng) -> std::pair<bool, bool> {
+              std::uniform_int_distribution<int> coin_dist(0, n - 1);
+              std::bernoulli_distribution fair(0.5);
+
+              int coin = coin_dist(rng);
+              bool double_headed = (coin < k);
+
+              bool t1 = double_headed ? true : fair(rng);
+              bool t2 = double_headed ? true : fair(rng);
+              bool t3 = double_headed ? true : fair(rng);
+              bool t4 = double_headed ? true : fair(rng);
+
+              bool first_three = t1 && t2 && t3;
+              return {first_three, first_three && t4};
+          };
+
+      - type: paragraph
+        text: |
+          Функция возвращает пару {{code:(cond, full)}}: {{code:cond}}
+          установлена, если первые три броска — «орлы»; {{code:full}}
+          установлена, если все четыре броска — «орлы» (заметим, что
+          {{code:full}} влечёт {{code:cond}}).
+
+      - type: listing
+        id: lst.main
+        language: C++
+        caption: 'Основная функция: разбор аргументов и оценка вероятности'
+        content: |
+          int main(int argc, char** argv) {
+              int n = std::stoi(argv[1]);   // всего монет
+              int k = std::stoi(argv[2]);   // двуглавых монет
+              size_t sim = std::stoull(argv[3]); // испытаний
+
+              auto experiment = /* ... лямбда выше ... */;
+
+              TaskRunner runner;
+              auto results = runner.run(experiment, sim);
+
+              size_t three_heads = 0, four_heads = 0;
+              for (auto [cond, full] : results) {
+                  if (cond)  three_heads++;
+                  if (full)  four_heads++;
+              }
+
+              double p = 1.0 * four_heads / three_heads;
+              std::println("P(4th heads | first 3 heads) = {:.6f}", p);
+
+              return 0;
+          }
+
+      - type: figure
+        id: fig.task10_console
+        path: "assets/task10.png"
+        caption: "Результат моделирования для $n = 10$, $k = 3$, $10^7$ испытаний"
+        width: 0.9

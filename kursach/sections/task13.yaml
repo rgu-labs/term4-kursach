@@ -1,7 +1,214 @@
 id: task13
-title: "Cтатистика графа"
+title: "Статистический анализ случайных графов"
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Разработана программа для генерации случайных взвешенных графов и
+      вычисления набора графовых характеристик методом Монте-Карло. Для
+      эффективной работы с памятью реализована многоуровневая система
+      аллокаторов.
+
+subsections:
+
+  - id: task13_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Генерируется неориентированный взвешенный граф $G = (V, E)$
+          с $|V| = n$ вершинами. Для каждой пары $(i,j)$ независимо:
+
+      - type: formula
+        id: eq.graph_generation
+        content: |-
+          P(e_{ij} \neq 0) = d, \quad w_{ij} \sim U\{1, 2, \ldots, L\}
+
+      - type: paragraph
+        text: |
+          где $d$ — плотность графа, $L$ — максимальный вес ребра.
+          Вес $w_{ij} = 0$ означает отсутствие ребра.
+
+      - type: paragraph
+        text: |
+          Для каждого сгенерированного графа вычисляются следующие
+          характеристики:
+
+      - type: table
+        id: tbl.metrics
+        caption: "Характеристики случайного графа"
+        columns: ["Метрика", "Обозначение", "Алгоритм", "Сложность"]
+        rows:
+          - ['Вес MST', '$\text{MST}(G)$', 'Прима', '$O(n^2)$']
+          - ['Длина цикла (макс.)', '$\|C_{\max}\|$', 'DFS (исчерп.)', '$O(n \cdot 2^n)$']
+          - ['Вес цикла (макс.)', '$W(C_{\max})$', 'DFS (исчерп.)', '$O(n \cdot 2^n)$']
+          - ['Изолированные вершины', '$I(G)$', 'Перебор', '$O(n^2)$']
+          - ['Число остовных деревьев', '$\tau(G)$', 'Кирхгоф + Барейсс', '$O(n^3)$']
+          - ['Компоненты связности', '$C_c(G)$', 'BFS', '$O(n^2)$']
+          - ['Кликовые компоненты', '$K_c(G)$', 'BFS + проверка', '$O(n^2 + m)$']
+
+      - type: paragraph
+        text: |
+          {{bold:Вес минимального остовного дерева (MST).}} Вычисляется
+          алгоритмом Прима за $O(n^2)$:
+
+      - type: formula
+        id: eq.mst
+        content: '\text{MST}(G) = \sum_{v \in V} \min_{u \in S, (u,v) \in E} w(u,v)'
+
+      - type: paragraph
+        text: |
+          где $S$ — множество уже включённых в MST вершин.
+
+      - type: paragraph
+        text: |
+          {{bold:Число остовных деревьев.}} Вычисляется по матричной теореме
+          Кирхгофа: число остовных деревьев $\tau(G)$ равно определителю
+          редуцированной матрицы Лапласа $L'$ размера $(n-1) \times (n-1)$:
+
+      - type: formula
+        id: eq.laplacian
+        content: |-
+          L'_{ij} = \begin{cases}
+          \deg(i), & i = j, \\
+          -1,      & (i,j) \in E, \\
+          0,       & \text{иначе}
+          \end{cases}
+
+      - type: paragraph
+        text: |
+          Определитель вычисляется алгоритмом Барейсса (бесскобочное
+          исключение Гаусса), который оперирует целыми числами и избегает
+          накопления ошибок округления:
+
+      - type: formula
+        id: eq.bareiss
+        content: |-
+          a_{i,j}^{(k+1)} = \frac{a_{i,j}^{(k)} \cdot a_{k,k}^{(k)}
+          - a_{i,k}^{(k)} \cdot a_{k,j}^{(k)}}{a_{k-1,k-1}^{(k-1)}}
+
+      - type: paragraph
+        text: |
+          {{bold:Статистическое агрегирование.}} По результатам $N$ испытаний
+          вычисляются выборочные средние и дисперсии для каждой метрики:
+
+      - type: formula
+        id: eq.stats
+        content: '\bar{x} = \frac{1}{N}\sum_{k=1}^{N} x_k, \qquad
+          \hat{\sigma}^2 = \frac{1}{N}\sum_{k=1}^{N} x_k^2 - \bar{x}^2'
+
+  - id: task13_implementation
+    title: "Программная реализация"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Приложение принимает на вход JSON-файл конфигурации и имя выходного
+          файла. Симуляция выполняется в несколько потоков.
+
+      - type: listing
+        id: lst.task13_config_json
+        language: C++
+        caption: 'Пример конфигурационного файла config.json'
+        content: |
+          {
+              "n":              10,
+              "edge_length":    10,
+              "graph_density":  0.99,
+              "seed":           14527346871,
+              "precision":      "extreme",
+              "metrics": {
+                  "mst_weight":          true,
+                  "longest_cycle_edges": true,
+                  "heaviest_cycle_edges":true,
+                  "isolated_vertices":   true,
+                  "spanning_trees":      true,
+                  "connected_components":true,
+                  "clique_components":   true
+              }
+          }
+
+      - type: paragraph
+        text: |
+          {{bold:Параллельная симуляция.}} Каждый поток имеет собственный
+          генератор случайных чисел и собственный аренный аллокатор, что
+          исключает необходимость синхронизации при записи результатов.
+
+      - type: listing
+        id: lst.simulator
+        language: C++
+        caption: 'Параллельный цикл симуляции'
+        content: |
+          void run_simulation(const SimulatorConfig& config,
+                              SimulatorResult& result)
+          {
+              int threads = std::thread::hardware_concurrency();
+              std::vector<std::thread> pool;
+              std::mutex mutex;
+              Accum global_accums[7] = {};
+
+              for (int t = 0; t < threads; t++) {
+                  pool.emplace_back([&, t]() {
+                      // Собственный аренный аллокатор на 4 MB
+                      VirtualHeap heap;
+                      heap.init(g_os_memory, megabytes(4));
+                      ArenaAllocator arena;
+                      arena.init(heap.take(megabytes(4)));
+
+                      // Собственный RNG
+                      std::mt19937 rng(config.seed ^ t);
+
+                      Accum local_accums[7] = {};
+                      int trials_per_thread = config.total_trials / threads;
+
+                      for (int i = 0; i < trials_per_thread; i++) {
+                          auto mark = arena.save();
+
+                          Graph graph;
+                          generate_graph(graph, config, rng, arena);
+
+                          for (int m = 0; m < 7; m++) {
+                              if (config.metrics[m]) {
+                                  double value = compute_metric(
+                                      static_cast<Metric>(m), graph, arena);
+                                  local_accums[m].add(value);
+                              }
+                          }
+
+                          arena.restore(mark);
+                      }
+
+                      std::lock_guard lock(mutex);
+                      for (int m = 0; m < 7; m++)
+                          global_accums[m].merge(local_accums[m]);
+                  });
+              }
+
+              for (auto& t : pool) t.join();
+              // global_accums -> result
+          }
+
+      - type: paragraph
+        text: |
+          {{bold:Система аллокаторов.}} Реализована многоуровневая иерархия
+          управления памятью:
+          \begin{enumerate}
+            \item {{code:OSMemory}} — резервирование/фиксация виртуальной
+                  памяти через {{code:mmap}};
+            \item {{code:VirtualHeap}} — резервирование непрерывного диапазона
+                  адресов с автоматической фиксацией страниц;
+            \item {{code:ArenaAllocator}} — линейный аллокатор с сохранением
+                  и восстановлением состояния (стекинг);
+            \item {{code:ArenaResource}} — адаптер {{code:std::pmr::memory\_resource}}
+                  для использования с PMR-контейнерами.
+          \end{enumerate}
+          Аренная модель позволяет освободить всю память, выделенную за
+          испытание, одной операцией {{code:restore()}}, что исключает
+          фрагментацию и ускоряет повторяющиеся выделения.
+
+      - type: figure
+        id: fig.task13_console
+        path: "assets/task13.png"
+        caption: "Результат статистического анализа случайного графа"
+        width: 0.9

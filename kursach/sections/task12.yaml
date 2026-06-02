@@ -1,7 +1,167 @@
 id: task12
-title: "Игла Бюффона"
+title: 'Моделирование Бюффона: оценка числа $\pi$ методом Монте-Карло'
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Реализована классическая задача Бюффона о бросании иглы на плоскость с
+      параллельными линиями. Методом Монте-Карло оценивается вероятность
+      пересечения иглой линии, на основе которой приближённо вычисляется
+      число $\pi$.
+
+subsections:
+
+  - id: task12_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Плоскость разлинована параллельными прямыми на расстоянии $d$ друг
+          от друга. Игла длины $L \le d$ случайным образом бросается на
+          плоскость. Положение иглы описывается двумя независимыми случайными
+          величинами:
+
+      - type: paragraph
+        text: |
+          \begin{itemize}
+            \item $x$ — расстояние от середины иглы до ближайшей линии,
+                  $x \sim U(0, d/2)$;
+            \item $\phi$ — острый угол между иглой и линиями,
+                  $\phi \sim U(0, \pi/2)$.
+          \end{itemize}
+
+      - type: paragraph
+        text: |
+          Игла пересекает линию, если проекция половины её длины на
+          направление, перпендикулярное линиям, превышает расстояние до
+          ближайшей линии:
+
+      - type: formula
+        id: eq.task12_crossing_condition
+        content: '\frac{L}{2} \sin\phi \ge x'
+
+      - type: paragraph
+        text: |
+          Вероятность пересечения:
+
+      - type: formula
+        id: eq.crossing_prob
+        content: |-
+          P_{\text{cross}} = \frac{\displaystyle\int_{0}^{\pi/2}
+          \frac{L}{2} \sin\phi \; d\phi}{(d/2) \cdot (\pi/2)}
+          = \frac{2L}{\pi d}
+
+      - type: paragraph
+        text: |
+          Эмпирическая вероятность оценивается по $N$ бросаниям:
+
+      - type: formula
+        id: eq.task12_empirical_prob
+        content: '\hat{P}_{\text{cross}} = \frac{C}{N}'
+
+      - type: paragraph
+        text: |
+          где $C$ — число пересечений. Приравнивая $\hat{P}_{\text{cross}}$
+          к теоретической вероятности, получаем оценку числа $\pi$:
+
+      - type: formula
+        id: eq.pi_estimate
+        content: '\pi \approx \frac{2L}{d \cdot \hat{P}_{\text{cross}}}'
+
+      - type: paragraph
+        text: |
+          Точность оценки характеризуется абсолютной ошибкой:
+          $\varepsilon = |\hat{P}_{\text{cross}} - P_{\text{cross}}|$.
+
+  - id: task12_implementation
+    title: "Ядро симуляции"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Класс {{code:NeedleSimulation}} реализует одно бросание иглы и
+          пакетный запуск.
+
+      - type: listing
+        id: lst.simulation_class
+        language: C++
+        caption: 'Класс NeedleSimulation'
+        content: |
+          struct NeedleResult {
+              double x;       // расстояние до линии
+              double phi;     // угол
+              bool crosses;   // пересечение?
+          };
+
+          class NeedleSimulation {
+          public:
+              NeedleSimulation(double d, double L);
+              NeedleResult run_single();
+              std::vector<NeedleResult> run_batch(int n);
+          private:
+              double m_d, m_L;
+              std::mt19937 m_rng;
+              std::uniform_real_distribution<double> m_dist_x;
+              std::uniform_real_distribution<double> m_dist_phi;
+          };
+
+      - type: listing
+        id: lst.task12_run_single
+        language: C++
+        caption: 'Метод run\_single() — одно бросание иглы'
+        content: |
+          NeedleResult NeedleSimulation::run_single() {
+              double x   = m_dist_x(m_rng);      // U(0, d/2)
+              double phi = m_dist_phi(m_rng);    // U(0, π/2)
+              bool crosses = x <= (m_L / 2.0) * std::sin(phi);
+              return {x, phi, crosses};
+          }
+
+  - id: task12_gui
+    title: "Графический интерфейс"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Приложение построено на Qt6 Quick и предоставляет два режима работы.
+
+      - type: paragraph
+        text: |
+          {{bold:Пакетный режим.}} Пользователь задаёт число бросаний $N$
+          (100–100 000) и запускает симуляцию. Отображаются: общее число
+          бросков, число пересечений, эмпирическая вероятность
+          $\hat{P}_{\text{cross}}$, точная вероятность $P_{\text{cross}} = 2L/(\pi d)$,
+          абсолютная ошибка и оценка числа $\pi$.
+
+      - type: paragraph
+        text: |
+          {{bold:Визуальный режим.}} Каждая игла отображается на холсте:
+          пересекающие линии иглы окрашиваются красным, не пересекающие —
+          фиолетовым. Доступна легенда и счётчик пересечений для текущего
+          кадра.
+
+      - type: paragraph
+        text: |
+          {{bold:График сходимости.}} На отдельном графике (компонент
+          {{code:ProbabilityChart}}) отображается зависимость
+          $\hat{P}_{\text{cross}}$ от отношения $L/d$ вместе с теоретической
+          кривой $P_{\text{cross}} = \frac{2}{\pi} \cdot \frac{L}{d}$.
+
+      - type: paragraph
+        text: |
+          Управление параметрами осуществляется ползунками: $d$ (расстояние
+          между линиями), $L$ (длина иглы, $L \le d$), $N$ (число бросаний).
+
+      - type: figure_group
+        id: fig.task12_results
+        caption: "Интерфейс приложения и визуализация бросаний иглы"
+        layout: vertical
+        figures:
+          - path: "assets/task12_gui.png"
+            subcaption: "Интерфейс приложения в пакетном режиме с графиком сходимости"
+            width: 0.95
+
+          - path: "assets/task12_visual.png"
+            subcaption: "Визуальный режим: пересекающие (красные) и не пересекающие (фиолетовые) иглы"
+            width: 0.95

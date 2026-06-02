@@ -1,7 +1,133 @@
 id: task08
-title: "Бочка с бензином"
+title: "Моделирование взрыва бочки с бензином"
 numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Рассматривается вероятностная модель разрушения бочки с бензином при
+      многократном обстреле. Каждый выстрел независимо поражает цель с заданной
+      вероятностью. Бочка взрывается при двух и более попаданиях; при одном
+      попадании взрыв происходит с дополнительной условной вероятностью.
+
+subsections:
+
+  - id: task08_model
+    title: "Математическая модель"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Производится $n$ независимых выстрелов по бочке. Каждый выстрел
+          поражает цель с вероятностью $p$. Число попаданий $X$ имеет
+          биномиальное распределение:
+
+      - type: formula
+        id: eq.binomial_hits
+        content: 'P(X = k) = \binom{n}{k} p^k (1-p)^{n-k}'
+
+      - type: paragraph
+        text: |
+          Бочка взрывается в следующих случаях:
+          \begin{itemize}
+            \item[$X \ge 2$] — гарантированный взрыв;
+            \item[$X = 1$] — взрыв с вероятностью $p_1$;
+            \item[$X = 0$] — бочка невредима.
+          \end{itemize}
+
+      - type: formula
+        id: eq.explosion_prob
+        content: |-
+          P(\text{взрыв}) = 1 - (1-p)^n - n p (1-p)^{n-1} (1-p_1)
+
+      - type: paragraph
+        text: |
+          Вероятность взрыва складывается из вероятности двух и более
+          попаданий и вероятности ровно одного попадания, умноженной на
+          $p_1$. Соответственно, вероятность выживания бочки равна:
+          $(1-p)^n + n p (1-p)^{n-1} (1-p_1)$.
+
+      - type: paragraph
+        text: |
+          Рассмотрены частные случаи:
+          \begin{itemize}
+            \item $p_1 = 0$: взрыв только при $X \ge 2$;
+            \item $p_1 = 1$: взрыв при любом попадании;
+            \item $n = 1$: возможны только 0 или 1 попадание.
+          \end{itemize}
+
+  - id: task08_implementation
+    title: "Программная реализация"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Задача реализована в виде консольного приложения, использующего
+          шаблонный класс {{code:TaskRunner}} для проведения серии
+          стохастических экспериментов.
+
+      - type: listing
+        id: lst.experiment_lambda
+        language: C++
+        caption: 'Лямбда-функция одного испытания'
+        content: |
+          auto experiment = [p, p1, n](auto& rng) -> bool {
+              std::bernoulli_distribution hit(p);
+
+              int hits = 0;
+              for (int i = 0; i < n; i++)
+                  if (hit(rng)) ++hits;
+
+              if (hits == 0) return false;
+              if (hits >= 2) return true;
+
+              return std::bernoulli_distribution(p1)(rng);
+          };
+
+      - type: paragraph
+        text: |
+          Аргументы командной строки: {{code:p}} (вероятность попадания),
+          {{code:p1}} (вероятность взрыва при одном попадании),
+          {{code:n}} (число выстрелов), {{code:simulations}} (число
+          испытаний). Результат выводится в виде эмпирических вероятностей
+          взрыва и выживания.
+
+      - type: listing
+        id: lst.main_function
+        language: C++
+        caption: 'Основная функция с разбором аргументов и запуском'
+        content: |
+          int main(int argc, char** argv) {
+              if (argc != 5) { print_usage(argv[0]); return 1; }
+
+              double p   = std::stod(argv[1]);
+              double p1  = std::stod(argv[2]);
+              int    n   = std::stoi(argv[3]);
+              size_t sim = std::stoull(argv[4]);
+
+              auto experiment = /* ... лямбда выше ... */;
+
+              TaskRunner runner;
+              auto results = runner.run(experiment, sim);
+
+              auto freq = tally(results);
+              size_t explosions = freq[true];
+              double p_explosion = 1.0 * explosions / sim;
+
+              std::println("P(barrel explodes) = {:.6f}", p_explosion);
+              std::println("P(barrel survives) = {:.6f}", 1.0 - p_explosion);
+
+              return 0;
+          }
+
+      - type: paragraph
+        text: |
+          Для аналитической верификации программа может вычислять точное
+          значение $P(\text{взрыв})$ по формуле и сравнивать с результатом
+          Монте-Карло, демонстрируя сходимость оценки с ростом числа
+          испытаний.
+
+      - type: figure
+        id: fig.task08_console
+        path: "assets/task08.png"
+        caption: "Результат моделирования взрыва бочки для $p = 0{,}3$, $p_1 = 0{,}5$, $n = 10$, $10^6$ испытаний"
+        width: 0.9

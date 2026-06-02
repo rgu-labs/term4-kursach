@@ -4,4 +4,176 @@ numbered: true
 body:
   - type: paragraph
     text: |
-      Здесь будет описание задачи и её решения.
+      Дана серия из $M$ кластеров, каждый содержит $n$ ячеек. В каждую ячейку помещается
+      символ из алфавита $A$ мощности $r$. Лексема длины $k$ называется $k$-паттерном.
+      Два соседних кластера соединяемы по заданному $k$-паттерну, если конкатенация
+      некоторого суффикса левого кластера с некоторым префиксом правого кластера
+      в точности даёт этот паттерн. Требуется эмпирически оценить три вероятности:
+      а) все пары кластеров соединяемы; б) ровно $D$ пар соединяемы; в) ни одна пара
+      не соединяема.
+
+subsections:
+
+  - id: task05_model
+    title: "Модель и критерий соединяемости"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Каждый кластер $C_i$ — строка длины $n$ над алфавитом $A$. Кластеры
+          $C_i$ и $C_{i+1}$ соединяемы по паттерну $P$ длины $k$, если существуют
+          натуральные $a$ и $b$ такие, что:
+
+      - type: formula
+        id: eq.connectivity
+        content: 'a + b = k, \quad 1 \le a \le n-1, \quad 1 \le b \le n-1'
+
+      - type: formula
+        id: eq.concatenation
+        content: '\operatorname{suffix}_a(C_i) \oplus \operatorname{prefix}_b(C_{i+1}) = P'
+
+      - type: paragraph
+        text: |
+          где $\operatorname{suffix}_a$ — последние $a$ символов, $\operatorname{prefix}_b$ —
+          первые $b$ символов. Значение символа в каждой ячейке определяется случайной
+          величиной с заданным дискретным распределением на алфавите $A$.
+
+      - type: paragraph
+        text: |
+          {{bold:Пример.}} Пусть $A = \{0, 1\}$, $n = 5$, паттерн $P = 101$.
+      - type: list
+        ordered: false
+        items:
+          - 'Кластеры $10010$ и $11010$ — соединяемы: $\operatorname{suffix}_2(10010) = 10$, $\operatorname{prefix}_1(11010) = 1$, $10 \oplus 1 = 101$.'
+          - 'Кластеры $10101$ и $01000$ — соединяемы: $\operatorname{suffix}_2(10101) = 01$, $\operatorname{prefix}_1(01000) = 0$, $01 \oplus 0 = 010 \neq 101$ — но существует другая комбинация: $\operatorname{suffix}_1(10101) = 1$, $\operatorname{prefix}_2(01000) = 01$, $1 \oplus 01 = 101$.'
+          - 'Кластеры $10011$ и $10111$ — не соединяемы: никакая пара $a, b$ не даёт $101$.'
+
+  - id: task05_algorithm
+    title: "Алгоритм проверки соединяемости"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Проверка выполняется перебором всех допустимых длин $a \in [1, n-1]$,
+          $b = k - a$. Если $b \in [1, n-1]$, конкатенация суффикса и префикса
+          сравнивается с паттерном.
+
+      - type: listing
+        id: lst.are_connected
+        language: C++
+        caption: "Метод проверки соединяемости двух соседних кластеров"
+        content: |
+          bool ClusterSimulator::are_connected(
+              const std::string& left, const std::string& right) const {
+              for (int a = 1; a < m_cells_per_cluster && a < m_pattern_length; ++a) {
+                  int b = m_pattern_length - a;
+                  if (b < 1 || b >= m_cells_per_cluster) continue;
+
+                  std::string suffix = left.substr(
+                      m_cells_per_cluster - a, a);
+                  std::string prefix = right.substr(0, b);
+
+                  if (suffix + prefix == m_pattern) return true;
+              }
+              return false;
+          }
+
+  - id: task05_generation
+    title: "Генерация кластеров"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Кластеры генерируются побуквенно: для каждой ячейки значение символа
+          выбирается методом обратного преобразования (inverse transform sampling)
+          согласно заданному распределению вероятностей на алфавите.
+
+      - type: listing
+        id: lst.generate_cluster
+        language: C++
+        caption: "Генерация одного кластера методом обратного преобразования"
+        content: |
+          std::string ClusterSimulator::generate_cluster() {
+              std::string cluster;
+              for (int i = 0; i < m_cells_per_cluster; ++i) {
+                  double r = m_distribution(m_generator);
+                  for (size_t j = 0; j < m_cumulative.size(); ++j) {
+                      if (r < m_cumulative[j]) {
+                          cluster += m_symbols[j];
+                          break;
+                      }
+                  }
+              }
+              return cluster;
+          }
+
+  - id: task05_empirical
+    title: "Эмпирическая оценка вероятностей"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Для каждого эксперимента генерируется новая серия из $M$ кластеров,
+          подсчитывается число соединяемых пар. По $C$ экспериментам вычисляются:
+
+      - type: list
+        ordered: false
+        items:
+          - '$P_{\text{all}}$ — доля экспериментов, где все $M-1$ пар соединяемы.'
+          - '$P_D$ — доля экспериментов, где ровно $D$ пар соединяемы.'
+          - '$P_{\text{none}}$ — доля экспериментов, где нет ни одной соединяемой пары.'
+
+      - type: listing
+        id: lst.simulate
+        language: C++
+        caption: "Пакетный эксперимент и подсчёт эмпирических вероятностей"
+        content: |
+          void ClusterSimulator::simulate_empirical(int C) {
+              int all_conn = 0, none_conn = 0;
+              std::map<int, int> d_counts;
+
+              for (int exp = 0; exp < C; ++exp) {
+                  generate_all_clusters();
+                  int pairs = count_connected_pairs();
+                  d_counts[pairs]++;
+
+                  if (pairs == m_clusters_count - 1) all_conn++;
+                  if (pairs == 0) none_conn++;
+              }
+
+              std::cout << "P(all connected) = "
+                  << (double)all_conn / C << "\n";
+              for (auto [d, cnt] : d_counts)
+                  std::cout << "P(D=" << d << ") = "
+                      << (double)cnt / C << "\n";
+              std::cout << "P(none connected) = "
+                  << (double)none_conn / C << "\n";
+          }
+
+  - id: task05_results
+    title: "Результаты моделирования"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Эксперименты проведены при $M = 10$, $n = 5$, $k = 3$, $A = \{0, 1\}$,
+          $C = 10^6$. Результаты для трёх конфигураций:
+
+      - type: table
+        id: tbl.task05_results
+        caption: "Эмпирические вероятности для различных конфигураций"
+        columns: ["Конфигурация", "$P_{\\text{all}}$", "$P(D=0)$", "$P(D=1)$", "$P(D=2)$", "$P(D=3)$", "$P(D=4)$", "$P(D=5)$", "$P(D=6)$"]
+        rows:
+          - ["равн. $P(0)=P(1)=0.5$, паттерн $101$", "0.039", "0.039", "0.143", "0.251", "0.275", "0.192", "0.051", "0.009"]
+          - ["нер. $P(0)=0.3, P(1)=0.7$, паттерн $101$", "0.182", "0.001", "0.008", "0.034", "0.088", "0.164", "0.233", "0.290"]
+          - ["равн. $P(0)=P(1)=0.5$, паттерн $111$", "0.000", "0.574", "0.327", "0.089", "0.010", "0.000", "0.000", "0.000"]
+
+      - type: paragraph
+        text: |
+          При равномерном распределении и паттерне $101$ распределение $D$ близко
+          к симметричному с максимумом в $D = 3$. При смещённом распределении
+          ($P(1) = 0.7$) вероятность всех соединяемых пар резко возрастает,
+          а мода смещается к $D = 6$. Паттерн $111$ при равномерном распределении
+          практически не даёт соединяемых пар, поскольку вероятность выпадения
+          трёх единиц подряд мала.
+      - type: page_break
