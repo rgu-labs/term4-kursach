@@ -2,11 +2,40 @@ id: references
 title: "Список использованных источников"
 numbered: false
 entries:
-  - id: ref.example
+  - id: ref.gmurman
     type: book
-    authors: ["Фамилия И.О."]
-    title: "Название книги"
-    publisher: "Издательство"
-    city: "Город"
-    year: 2024
-    pages: 256
+    authors: ["Гмурман В.Е."]
+    title: "Теория вероятностей и математическая статистика"
+    publisher: "Юрайт"
+    city: "Москва"
+    year: 2023
+    pages: 480
+
+  - id: ref.kostikov
+    type: book
+    authors: ["Костиков Ю.А.", "Романенков А.М."]
+    title: "Практикум по теории вероятности: случайное событие. Методическое пособие для студентов"
+    publisher: "ВИНИТИ"
+    city: "Москва"
+    year: 2010
+    pages: 40
+
+  - id: ref.qt
+    type: online
+    title: "Qt 6 Documentation"
+    url: "https://doc.qt.io/qt-6/"
+    accessed: "2026-04-24"
+
+  - id: ref.imgui
+    type: online
+    authors: ["Cornut O."]
+    title: "Dear ImGui: Bloat-free Graphical User Interface for C++"
+    url: "https://github.com/ocornut/imgui"
+    accessed: "2026-04-24"
+
+  - id: ref.json
+    type: online
+    authors: ["Lohmann N."]
+    title: "JSON for Modern C++ (nlohmann/json)"
+    url: "https://github.com/nlohmann/json"
+    accessed: "2026-04-24"

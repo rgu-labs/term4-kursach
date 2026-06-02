@@ -104,7 +104,7 @@ subsections:
               int    n   = std::stoi(argv[3]);
               size_t sim = std::stoull(argv[4]);
 
-              auto experiment = /* ... лямбда выше ... */;
+              auto experiment = /* ... lambda above ... */;
 
               TaskRunner runner;
               auto results = runner.run(experiment, sim);
@@ -131,3 +131,4 @@ subsections:
         path: "assets/task08.png"
         caption: "Результат моделирования взрыва бочки для $p = 0{,}3$, $p_1 = 0{,}5$, $n = 10$, $10^6$ испытаний"
         width: 0.9
+      - type: page_break

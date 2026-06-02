@@ -105,7 +105,6 @@ subsections:
               const std::string& target_msg,
               bool use_vigenere)
           {
-              // P(C = target)
               double p_cipher = 0.0;
               for (size_t j = 0; j < msgs.size(); j++)
                   for (size_t s = 0; s < keys.size(); s++)
@@ -113,18 +112,15 @@ subsections:
                               == target_cipher)
                           p_cipher += msg_probs[j] * key_probs[s];
 
-              // P(C = target | M = target_msg)
               double p_c_given_m = 0.0;
               for (size_t s = 0; s < keys.size(); s++)
                   if (encrypt(target_msg, keys[s], use_vigenere)
                           == target_cipher)
                       p_c_given_m += key_probs[s];
 
-              // P(M = target_msg | C = target_cipher)
               double p_m_given_c =
                   p_c_given_m * msg_probs[/* idx of target_msg */] / p_cipher;
 
-              // Check: |P(M|C) - P(M)| < 1e-9  => perfect secrecy
           }
 
       - type: paragraph
@@ -183,3 +179,4 @@ subsections:
         path: "assets/task09.png"
         caption: "Результат криптоанализа: вывод программы для всех четырёх сценариев"
         width: 0.9
+      - type: page_break

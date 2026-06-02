@@ -89,9 +89,9 @@ subsections:
         caption: 'Класс NeedleSimulation'
         content: |
           struct NeedleResult {
-              double x;       // расстояние до линии
-              double phi;     // угол
-              bool crosses;   // пересечение?
+              double x;
+              double phi;
+              bool crosses;
           };
 
           class NeedleSimulation {
@@ -112,8 +112,8 @@ subsections:
         caption: 'Метод run\_single() — одно бросание иглы'
         content: |
           NeedleResult NeedleSimulation::run_single() {
-              double x   = m_dist_x(m_rng);      // U(0, d/2)
-              double phi = m_dist_phi(m_rng);    // U(0, π/2)
+              double x   = m_dist_x(m_rng);
+              double phi = m_dist_phi(m_rng);
               bool crosses = x <= (m_L / 2.0) * std::sin(phi);
               return {x, phi, crosses};
           }
@@ -160,8 +160,9 @@ subsections:
         figures:
           - path: "assets/task12_gui.png"
             subcaption: "Интерфейс приложения в пакетном режиме с графиком сходимости"
-            width: 0.95
+            width: 0.8
 
           - path: "assets/task12_visual.png"
             subcaption: "Визуальный режим: пересекающие (красные) и не пересекающие (фиолетовые) иглы"
-            width: 0.95
+            width: 0.8
+      - type: page_break

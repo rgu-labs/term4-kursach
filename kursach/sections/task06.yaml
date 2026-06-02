@@ -81,7 +81,6 @@ subsections:
                   return (k % (n + 1)) * tau;
               }
               case Distribution::FiniteGeometric: {
-                  // truncated geometric: P(i) ∝ (1-p)^i * p
                   std::vector<double> weights(n + 1);
                   double sum = 0.0;
                   for (int i = 0; i <= n; i++) {
@@ -94,7 +93,6 @@ subsections:
                   return d(m_rng) * tau;
               }
               case Distribution::DiscreteTriangular: {
-                  // Snap continuous Triangular(a,b,c) to nearest k*tau
                   // ...
                   return best * tau;
               }
@@ -205,8 +203,9 @@ subsections:
         figures:
           - path: "assets/task06_gui.png"
             subcaption: "Интерфейс приложения: панель управления, статистика и сетка фигур"
-            width: 0.95
+            width: 0.8
 
           - path: "assets/task06_staircases.png"
             subcaption: "Примеры ступенчатых фигур: возрастающие и невозрастающие"
-            width: 0.95
+            width: 0.8
+      - type: page_break

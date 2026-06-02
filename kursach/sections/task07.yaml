@@ -202,8 +202,9 @@ subsections:
         figures:
           - path: "assets/task07_gui.png"
             subcaption: "Интерфейс приложения: панель управления и траектория на комплексной плоскости"
-            width: 0.95
+            width: 0.8
 
           - path: "assets/task07_trajectories.png"
             subcaption: "Примеры траекторий при различных законах распределения направлений"
-            width: 0.95
+            width: 0.8
+      - type: page_break

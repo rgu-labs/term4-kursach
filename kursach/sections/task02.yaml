@@ -154,9 +154,9 @@ subsections:
         figures:
           - path: "assets/task02_gui.png"
             subcaption: "Интерфейс приложения"
-            width: 0.95
+            width: 0.8
 
           - path: "assets/task02_search.png"
             subcaption: "Пример аналитического запроса"
-            width: 0.95
-      - type: page_break # temp
+            width: 0.8
+      - type: page_break

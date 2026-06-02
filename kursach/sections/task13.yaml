@@ -150,13 +150,11 @@ subsections:
 
               for (int t = 0; t < threads; t++) {
                   pool.emplace_back([&, t]() {
-                      // Собственный аренный аллокатор на 4 MB
                       VirtualHeap heap;
                       heap.init(g_os_memory, megabytes(4));
                       ArenaAllocator arena;
                       arena.init(heap.take(megabytes(4)));
 
-                      // Собственный RNG
                       std::mt19937 rng(config.seed ^ t);
 
                       Accum local_accums[7] = {};
@@ -186,7 +184,6 @@ subsections:
               }
 
               for (auto& t : pool) t.join();
-              // global_accums -> result
           }
 
       - type: paragraph
@@ -212,3 +209,4 @@ subsections:
         path: "assets/task13.png"
         caption: "Результат статистического анализа случайного графа"
         width: 0.9
+      - type: page_break

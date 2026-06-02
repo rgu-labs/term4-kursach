@@ -144,3 +144,4 @@ subsections:
         path: "assets/task11.png"
         caption: "Визуализация дискретной случайной величины: PMF, CDF и полигон распределения"
         width: 0.9
+      - type: page_break

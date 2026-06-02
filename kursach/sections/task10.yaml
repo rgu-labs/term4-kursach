@@ -112,11 +112,11 @@ subsections:
         caption: 'Основная функция: разбор аргументов и оценка вероятности'
         content: |
           int main(int argc, char** argv) {
-              int n = std::stoi(argv[1]);   // всего монет
-              int k = std::stoi(argv[2]);   // двуглавых монет
-              size_t sim = std::stoull(argv[3]); // испытаний
+              int n = std::stoi(argv[1]);
+              int k = std::stoi(argv[2]);
+              size_t sim = std::stoull(argv[3]);
 
-              auto experiment = /* ... лямбда выше ... */;
+              auto experiment = /* ... lambda above ... */;
 
               TaskRunner runner;
               auto results = runner.run(experiment, sim);
@@ -138,3 +138,4 @@ subsections:
         path: "assets/task10.png"
         caption: "Результат моделирования для $n = 10$, $k = 3$, $10^7$ испытаний"
         width: 0.9
+      - type: page_break

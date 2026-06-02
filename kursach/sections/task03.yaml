@@ -95,13 +95,13 @@ subsections:
         figures:
           - path: "assets/task03_gui.png"
             subcaption: "Интерфейс приложения: настройка параметров, статистика, граф передачи"
-            width: 0.7
+            width: 0.65
 
           - path: "assets/task03_success.png"
             subcaption: "Граф успешного эксперимента: новость передана $r$ раз без нарушений"
-            width: 0.7
+            width: 0.65
 
           - path: "assets/task03_failure.png"
             subcaption: "Граф неудачного эксперимента: нарушение условия (возврат к источнику / повтор)"
-            width: 0.7
+            width: 0.65
       - type: page_break
