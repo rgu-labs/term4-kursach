@@ -49,7 +49,9 @@ jobs:
             texlive-latex-extra \
             texlive-science \
             fonts-linuxlibertine \
+            fonts-dejavu-core \
             lmodern
+          fc-cache -f
 
       - name: Build imgui & implot (static libs)
         run: |
@@ -121,8 +123,15 @@ jobs:
 
       - name: Generate PDF
         run: |
+          set +e
           cd kursach
           ../bin/kursach-autogen kursach.yaml --output ../tmp/pdf
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "=== xelatex exit code: $EXIT_CODE (PDF may still have been generated) ==="
+            head -100 ../tmp/pdf/main.log | grep -i 'error\|fatal'
+          fi
+          set -e
           test -f ../tmp/pdf/main.pdf
 
       - name: Prepare Pages artifact
