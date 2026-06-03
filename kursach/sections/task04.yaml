@@ -13,46 +13,6 @@ body:
 
 subsections:
 
-  - id: task04_model
-    title: "Математическая модель"
-    numbered: true
-    body:
-      - type: paragraph
-        text: |
-          Положение точки на $i$-м шаге ($i = 1, 2, \ldots, N$) описывается рекуррентными
-          соотношениями:
-
-      - type: formula
-        id: eq.x_coord
-        content: 'x_i = x_{i-1} + h, \quad x_0 = 0'
-
-      - type: formula
-        id: eq.y_coord
-        content: 'y_i = y_{i-1} + s_i, \quad y_0 = Y'
-
-      - type: paragraph
-        text: |
-          где $s_i$ — значение случайной величины $s$ на $i$-м шаге,
-          $h$ — шаг по оси абсцисс, $Y$ — начальная ордината.
-
-      - type: paragraph
-        text: |
-          {{bold:Пересечение оси абсцисс.}} Траектория пересекает ось $Ox$ на шаге $i$,
-          если знаки $y_{i-1}$ и $y_i$ различны, либо $y_i = 0$ при $y_{i-1} \neq 0$.
-          Общее число пересечений $l$ подсчитывается за один проход:
-
-      - type: formula
-        id: eq.crossing_condition
-        content: 'l = \sum_{i=1}^{N} \mathbb{I}\big[ (y_{i-1} > 0 \land y_i < 0) \lor (y_{i-1} < 0 \land y_i > 0) \lor (y_i = 0 \land y_{i-1} \neq 0) \big]'
-
-      - type: paragraph
-        text: |
-          Эмпирическая вероятность ровно $l$ пересечений вычисляется по $C$ экспериментам:
-
-      - type: formula
-        id: eq.empirical_prob
-        content: 'P_{\text{emp}}(l) = \frac{|\{k \in [1, C] : l_k = l\}|}{C}'
-
   - id: task04_distributions
     title: "Законы распределения случайной величины $s$"
     numbered: true
@@ -277,19 +237,12 @@ subsections:
       - type: paragraph
         text: |
           {{bold:Результаты пакетного запуска:}} число траекторий с $l$ пересечениями
-          и эмпирическая вероятность. Пересечения подсчитываются асинхронно через
-          {{code:QtConcurrent::run}} для сохранения отзывчивости интерфейса.
+          и эмпирическая вероятность. Подсчёт пересечений выполняется асинхронно.
+          {{code:QtConcurrent::run}} сохраняет отзывчивость интерфейса.
 
-      - type: figure_group
+      - type: figure
         id: fig.task04_results
-        caption: "Интерфейс приложения и примеры траекторий"
-        layout: vertical
-        figures:
-          - path: "assets/task04_gui.png"
-            subcaption: "Интерфейс приложения: панель управления и график траектории"
-            width: 0.8
-
-          - path: "assets/task04_trajectories.png"
-            subcaption: "Примеры сгенерированных траекторий при различных законах распределения"
-            width: 0.8
+        path: "assets/task04_gui.png"
+        caption: "Интерфейс приложения: панель управления и график траектории"
+        width: 0.8
       - type: page_break

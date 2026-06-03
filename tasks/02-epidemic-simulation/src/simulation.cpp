@@ -26,8 +26,7 @@ const std::vector<Person>& Simulation::step() {
     for (const auto& person : m_people) {
         if (person.state != PersonState::Infected) continue;
         for (int cid : person.contacts) {
-            if ((m_people[cid].state == PersonState::Recovered || m_people[cid].state
-                    == PersonState::Healthy) &&
+            if (m_people[cid].state == PersonState::Healthy &&
                 m_dist(m_rng) < p_infect)
                 newly_infected.push_back(cid);
         }

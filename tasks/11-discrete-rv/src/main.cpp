@@ -57,7 +57,7 @@ int main()
 
       if (ImPlot::BeginPlot("CDF"))
       {
-          ImPlot::PlotLine("F(X)", x.data(), y_cdf.data(), static_cast<int>(x.size()));
+          ImPlot::PlotStairs("F(X)", x.data(), y_cdf.data(), static_cast<int>(x.size()));
           ImPlot::EndPlot();
       }
 

@@ -37,3 +37,4 @@ document:
   - !import "sections/task12.yaml"
   - !import "sections/task13.yaml"
   - !import "sections/references.yaml"
+  - !import "sections/appendix.yaml"

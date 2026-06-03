@@ -1,0 +1,12 @@
+id: appendix
+title: "Приложение"
+numbered: false
+body:
+  - type: paragraph
+    text: |
+      Исходный код всех разработанных приложений, а также исходные тексты
+      настоящей пояснительной записки доступны в репозитории:
+
+  - type: paragraph
+    text: |
+      {{url:https://github.com/rgu-labs/term4-kursach}}

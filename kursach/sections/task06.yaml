@@ -192,20 +192,14 @@ subsections:
 
       - type: paragraph
         text: |
-          {{bold:Пакетный режим.}} $N$ генераций выполняются асинхронно через
-          {{code:QtConcurrent::run}}, интерфейс остаётся отзывчивым во время
-          расчёта. Результат — число возрастающих фигур и их доля.
+          {{bold:Пакетный режим.}} $N$ генераций выполняются асинхронно
+          посредством {{code:QtConcurrent::run}}. Интерфейс остаётся
+          отзывчивым во время расчёта. Результат — число возрастающих
+          фигур и их доля.
 
-      - type: figure_group
+      - type: figure
         id: fig.task06_results
-        caption: "Интерфейс приложения и примеры ступенчатых фигур"
-        layout: vertical
-        figures:
-          - path: "assets/task06_gui.png"
-            subcaption: "Интерфейс приложения: панель управления, статистика и сетка фигур"
-            width: 0.8
-
-          - path: "assets/task06_staircases.png"
-            subcaption: "Примеры ступенчатых фигур: возрастающие и невозрастающие"
-            width: 0.8
+        path: "assets/task06_gui.png"
+        caption: "Интерфейс приложения: панель управления, статистика и сетка фигур"
+        width: 0.8
       - type: page_break

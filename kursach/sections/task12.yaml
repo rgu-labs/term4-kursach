@@ -1,78 +1,14 @@
 id: task12
-title: 'Моделирование Бюффона: оценка числа $\pi$ методом Монте-Карло'
+title: 'Моделирование Бюффона'
 numbered: true
 body:
   - type: paragraph
     text: |
       Реализована классическая задача Бюффона о бросании иглы на плоскость с
       параллельными линиями. Методом Монте-Карло оценивается вероятность
-      пересечения иглой линии, на основе которой приближённо вычисляется
-      число $\pi$.
+      пересечения иглой линии.
 
 subsections:
-
-  - id: task12_model
-    title: "Математическая модель"
-    numbered: true
-    body:
-      - type: paragraph
-        text: |
-          Плоскость разлинована параллельными прямыми на расстоянии $d$ друг
-          от друга. Игла длины $L \le d$ случайным образом бросается на
-          плоскость. Положение иглы описывается двумя независимыми случайными
-          величинами:
-
-      - type: paragraph
-        text: |
-          \begin{itemize}
-            \item $x$ — расстояние от середины иглы до ближайшей линии,
-                  $x \sim U(0, d/2)$;
-            \item $\phi$ — острый угол между иглой и линиями,
-                  $\phi \sim U(0, \pi/2)$.
-          \end{itemize}
-
-      - type: paragraph
-        text: |
-          Игла пересекает линию, если проекция половины её длины на
-          направление, перпендикулярное линиям, превышает расстояние до
-          ближайшей линии:
-
-      - type: formula
-        id: eq.task12_crossing_condition
-        content: '\frac{L}{2} \sin\phi \ge x'
-
-      - type: paragraph
-        text: |
-          Вероятность пересечения:
-
-      - type: formula
-        id: eq.crossing_prob
-        content: |-
-          P_{\text{cross}} = \frac{\displaystyle\int_{0}^{\pi/2}
-          \frac{L}{2} \sin\phi \; d\phi}{(d/2) \cdot (\pi/2)}
-          = \frac{2L}{\pi d}
-
-      - type: paragraph
-        text: |
-          Эмпирическая вероятность оценивается по $N$ бросаниям:
-
-      - type: formula
-        id: eq.task12_empirical_prob
-        content: '\hat{P}_{\text{cross}} = \frac{C}{N}'
-
-      - type: paragraph
-        text: |
-          где $C$ — число пересечений. Приравнивая $\hat{P}_{\text{cross}}$
-          к теоретической вероятности, получаем оценку числа $\pi$:
-
-      - type: formula
-        id: eq.pi_estimate
-        content: '\pi \approx \frac{2L}{d \cdot \hat{P}_{\text{cross}}}'
-
-      - type: paragraph
-        text: |
-          Точность оценки характеризуется абсолютной ошибкой:
-          $\varepsilon = |\hat{P}_{\text{cross}} - P_{\text{cross}}|$.
 
   - id: task12_implementation
     title: "Ядро симуляции"
@@ -131,8 +67,8 @@ subsections:
           {{bold:Пакетный режим.}} Пользователь задаёт число бросаний $N$
           (100–100 000) и запускает симуляцию. Отображаются: общее число
           бросков, число пересечений, эмпирическая вероятность
-          $\hat{P}_{\text{cross}}$, точная вероятность $P_{\text{cross}} = 2L/(\pi d)$,
-          абсолютная ошибка и оценка числа $\pi$.
+          $\hat{P}_{\text{cross}}$, точная вероятность $P_{\text{cross}}$
+          и абсолютная ошибка.
 
       - type: paragraph
         text: |
@@ -140,13 +76,6 @@ subsections:
           пересекающие линии иглы окрашиваются красным, не пересекающие —
           фиолетовым. Доступна легенда и счётчик пересечений для текущего
           кадра.
-
-      - type: paragraph
-        text: |
-          {{bold:График сходимости.}} На отдельном графике (компонент
-          {{code:ProbabilityChart}}) отображается зависимость
-          $\hat{P}_{\text{cross}}$ от отношения $L/d$ вместе с теоретической
-          кривой $P_{\text{cross}} = \frac{2}{\pi} \cdot \frac{L}{d}$.
 
       - type: paragraph
         text: |
@@ -159,7 +88,7 @@ subsections:
         layout: vertical
         figures:
           - path: "assets/task12_gui.png"
-            subcaption: "Интерфейс приложения в пакетном режиме с графиком сходимости"
+            subcaption: "Интерфейс приложения в пакетном режиме"
             width: 0.8
 
           - path: "assets/task12_visual.png"

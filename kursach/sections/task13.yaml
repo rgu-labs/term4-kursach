@@ -41,8 +41,8 @@ subsections:
         columns: ["Метрика", "Обозначение", "Алгоритм", "Сложность"]
         rows:
           - ['Вес MST', '$\text{MST}(G)$', 'Прима', '$O(n^2)$']
-          - ['Длина цикла (макс.)', '$\|C_{\max}\|$', 'DFS (исчерп.)', '$O(n \cdot 2^n)$']
-          - ['Вес цикла (макс.)', '$W(C_{\max})$', 'DFS (исчерп.)', '$O(n \cdot 2^n)$']
+          - ['Длина цикла (макс.)', '$\|C_{\max}\|$', 'DFS (исчерп.)', '$O(n!)$']
+          - ['Вес цикла (макс.)', '$W(C_{\max})$', 'DFS (исчерп.)', '$O(n!)$']
           - ['Изолированные вершины', '$I(G)$', 'Перебор', '$O(n^2)$']
           - ['Число остовных деревьев', '$\tau(G)$', 'Кирхгоф + Барейсс', '$O(n^3)$']
           - ['Компоненты связности', '$C_c(G)$', 'BFS', '$O(n^2)$']
@@ -59,7 +59,50 @@ subsections:
 
       - type: paragraph
         text: |
-          где $S$ — множество уже включённых в MST вершин.
+          где $S$ — множество уже включённых в MST вершин. Алгоритм поддерживает
+          массив {{code:key[v]}} — минимальный вес ребра, соединяющего $v$
+          с текущим MST, и массив {{code:in\_mst[v]}} — флаг включения вершины.
+
+      - type: listing
+        id: lst.prim_mst
+        language: C++
+        caption: 'Алгоритм Прима для вычисления веса MST'
+        content: |
+          i32 mst_weight(const Graph& g) {
+            i32 n = g.n;
+            if (n <= 1) return 0;
+
+            constexpr i32 kInf = numeric_limits<i32>::max();
+            i32 key[n];    bool in_mst[n];
+            for (i32 i = 0; i < n; i++) {
+              key[i] = kInf;   in_mst[i] = false;
+            }
+            key[0] = 0;
+
+            i32 total = 0;
+            for (i32 iter = 0; iter < n; iter++) {
+              i32 u = -1;
+              for (i32 v = 0; v < n; v++)
+                if (!in_mst[v] && (u == -1 || key[v] < key[u]))
+                  u = v;
+
+              if (key[u] == kInf) break;
+              in_mst[u] = true;
+              total += key[u];
+
+              for (i32 v = 0; v < n; v++)
+                if (!in_mst[v] && edge_exists(g, u, v))
+                  key[v] = min(key[v], (i32)edge_weight(g, u, v));
+            }
+            return total;
+          }
+
+      - type: paragraph
+        text: |
+          Граф хранится в виде сжатой верхне-треугольной матрицы смежности:
+          рёбра $E = \{w_{ij} \mid 0 \le i < j < n\}$ упакованы в
+          {{code:std::span<u8>}}, доступ по {{code:edge\_index(n,i,j)}} за $O(1)$.
+          Нулевой вес означает отсутствие ребра.
 
       - type: paragraph
         text: |
@@ -87,6 +130,43 @@ subsections:
         content: |-
           a_{i,j}^{(k+1)} = \frac{a_{i,j}^{(k)} \cdot a_{k,k}^{(k)}
           - a_{i,k}^{(k)} \cdot a_{k,j}^{(k)}}{a_{k-1,k-1}^{(k-1)}}
+
+      - type: listing
+        id: lst.bareiss
+        language: C++
+        caption: 'Алгоритм Барейсса: определитель редуцированной матрицы Лапласа'
+        content: |
+          i64 count_spanning_trees(const Graph& g) {
+            i32 n = g.n;
+            if (n <= 1) return 1;
+
+            i32 m = n - 1;
+            vector<vector<i64>> a(m, vector<i64>(m, 0));
+
+            // reduced Laplacian matrix
+            for (i32 i = 0; i < m; i++) {
+              for (i32 k = 0; k < n; k++)
+                if (k != i && edge_exists(g, i, k))
+                  a[i][i]++;                     // vertex degree
+
+              for (i32 j = 0; j < m; j++)
+                if (i != j)
+                  a[i][j] = edge_exists(g, i, j) ? -1 : 0;
+            }
+
+            i64 prev = 1;
+            for (i32 k = 0; k < m; k++) {
+              if (a[k][k] == 0) return 0;        // graph is disconnected
+
+              for (i32 i = k + 1; i < m; i++)
+                for (i32 j = k + 1; j < m; j++)
+                  a[i][j] = (a[i][j] * a[k][k] -
+                             a[i][k] * a[k][j]) / prev;
+
+              prev = a[k][k];
+            }
+            return a[m - 1][m - 1];
+          }
 
       - type: paragraph
         text: |
@@ -203,6 +283,37 @@ subsections:
           Аренная модель позволяет освободить всю память, выделенную за
           испытание, одной операцией {{code:restore()}}, что исключает
           фрагментацию и ускоряет повторяющиеся выделения.
+
+      - type: listing
+        id: lst.arena_allocator
+        language: C++
+        caption: 'Интерфейс аренного аллокатора (bump allocator)'
+        content: |
+          class ArenaAllocator final {
+          public:
+            void init(MemoryBlock block);
+
+            void* push(usize size, usize align);  // allocate memory
+            void  reset();                         // reset to start
+
+            struct Marker { usize offset; };
+            Marker save() const;                   // save position
+            void   restore(Marker m);              // restore to position
+          private:
+            void*  m_base;    // block base
+            usize  m_size;    // total size
+            usize  m_offset;  // current offset
+          };
+
+          // RAII wrapper: save/restore in ctor/dtor
+          struct ScopeArena final {
+            ArenaAllocator*       arena;
+            ArenaAllocator::Marker tag;
+
+            ScopeArena(ArenaAllocator* a)
+              : arena(a), tag(a->save()) {}
+            ~ScopeArena() { arena->restore(tag); }
+          };
 
       - type: figure
         id: fig.task13_console

@@ -16,6 +16,7 @@ subsections:
           - "разработать математические модели для каждого задания;"
           - "продумать и создать архитектуру приложений;"
           - "реализовать пользовательский интерфейс для управления параметрами моделирования;"
+          - "провести численные эксперименты и сравнить эмпирические результаты с теоретическими."
 
   - id: intro_tech
     title: "Используемые технологии"
@@ -29,9 +30,11 @@ subsections:
         items:
           - "{{code:CMake}} ({{url:https://github.com/Kitware/CMake}}) — система сборки проекта;"
           - "{{code:Qt6 Quick}} ({{url:https://github.com/qt/qtdeclarative}}) — фреймворк для разработки графического интерфейса;"
-          - "{{code:GLFW}} ({{url:https://github.com/glfw/glfw}}), {{code:Dear ImGui}} ({{url:https://github.com/ocornut/imgui}}) и {{code:ImPlot}} ({{url:https://github.com/epezent/implot}}) — для визуализации графиков дискретной случайной величины в одном из заданий;"
+          - "{{code:GLFW}} ({{url:https://github.com/glfw/glfw}}) — создание окна и контекста OpenGL;"
+          - "{{code:Dear ImGui}} ({{url:https://github.com/ocornut/imgui}}) — графический интерфейс;"
+          - "{{code:ImPlot}} ({{url:https://github.com/epezent/implot}}) — визуализация графиков;"
           - "{{code:nlohmann::json}} ({{url:https://github.com/nlohmann/json}}) — парсинг конфигурационных файлов;"
-          - "{{code:kursach-autogen}} ({{url:https://github.com/koftamainee/kursach-autogen/}}) — генерация пояснительной записки."
+          - "{{url:https://github.com/koftamainee/kursach-autogen}} ({{code:kursach-autogen}}) — генерация пояснительной записки."
       - type: paragraph
         text: |
           Все разработанные приложения устойчивы к аварийным завершениям, предусмотрена обработка ошибок ввода-вывода и некорректных параметров.
@@ -47,7 +50,6 @@ subsections:
         items:
           - "введение;"
           - "описание задач с подробностями их реализации;"
-          - "выводы;"
           - "список использованных источников;"
           - "приложение со ссылкой на репозиторий исходного кода."
       - type: page_break

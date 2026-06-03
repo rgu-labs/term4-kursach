@@ -92,10 +92,9 @@ ApplicationWindow {
                     }
                 }
 
-                }
-
                 // Distribution-specific parameters (shown conditionally)
                 ParamSlider {
+
                     Layout.fillWidth: true
                     visible: walk_controller.distribution === "binomial"
                     label: "trials  (binomial n)"

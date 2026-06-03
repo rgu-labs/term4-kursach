@@ -94,10 +94,10 @@ subsections:
     body:
       - type: paragraph
         text: |
-          Класс {{code:DiscreteRandomVariable}} хранит распределение в виде
-          {{code:std::map<double, double>}} (отсортировано по значению) и
-          предоставляет методы для вычисления PMF, CDF и всех числовых
-          характеристик.
+          {{code:std::map<double, double>}} (отсортировано по значению) —
+          формат хранения распределения в классе
+          {{code:DiscreteRandomVariable}}. Предоставляются методы
+          для вычисления PMF, CDF и всех числовых характеристик.
 
       - type: listing
         id: lst.class_interface

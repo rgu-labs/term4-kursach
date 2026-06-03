@@ -68,7 +68,7 @@ int PointWalkSimulation::count_crossings(const std::vector<double>& ys) {
         double a = ys[i - 1];
         double b = ys[i];
         if (a == 0.0 && b != 0.0) { cnt++; continue; }
-        if (b == 0.0) { cnt++; continue; }
+        if (a != 0.0 && b == 0.0) { cnt++; continue; }
         if ((a > 0.0) != (b > 0.0)) cnt++;
     }
     return cnt;

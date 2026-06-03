@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
       },
       Qt::QueuedConnection);
 
-  engine.load(QUrl(QStringLiteral("../../qml/Main.qml")));
+  engine.load(QUrl(QStringLiteral("qml/Main.qml")));
 
   if (engine.rootObjects().isEmpty()) {
     fprintf(stderr, "[FATAL] rootObjects is empty — QML failed to load\n");
