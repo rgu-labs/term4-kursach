@@ -1,5 +1,5 @@
 id: task13
-title: "Статистический анализ случайных графов"
+title: "Задача 13. Статистический анализ случайных графов"
 numbered: true
 body:
   - type: paragraph
@@ -72,7 +72,7 @@ subsections:
             i32 n = g.n;
             if (n <= 1) return 0;
 
-            constexpr i32 kInf = numeric_limits<i32>::max();
+            constexpr i32 kInf = std::numeric_limits<i32>::max();
             i32 key[n];    bool in_mst[n];
             for (i32 i = 0; i < n; i++) {
               key[i] = kInf;   in_mst[i] = false;
@@ -90,9 +90,12 @@ subsections:
               in_mst[u] = true;
               total += key[u];
 
-              for (i32 v = 0; v < n; v++)
-                if (!in_mst[v] && edge_exists(g, u, v))
-                  key[v] = min(key[v], (i32)edge_weight(g, u, v));
+            for (i32 v = 0; v < n; v++) {
+              if (!in_mst[v] && edge_exists(g, u, v)) {
+                i32 w = static_cast<i32>(edge_weight(g, u, v));
+                if (w < key[v]) key[v] = w;
+              }
+            }
             }
             return total;
           }
@@ -141,17 +144,21 @@ subsections:
             if (n <= 1) return 1;
 
             i32 m = n - 1;
-            vector<vector<i64>> a(m, vector<i64>(m, 0));
+            std::vector<std::vector<i64>> a(m, std::vector<i64>(m, 0));
 
             // reduced Laplacian matrix
             for (i32 i = 0; i < m; i++) {
+              i64 degree = 0;
               for (i32 k = 0; k < n; k++)
                 if (k != i && edge_exists(g, i, k))
-                  a[i][i]++;                     // vertex degree
+                  degree++;
 
-              for (i32 j = 0; j < m; j++)
-                if (i != j)
-                  a[i][j] = edge_exists(g, i, j) ? -1 : 0;
+              a[i][i] = degree;
+
+              for (i32 j = 0; j < m; j++) {
+                if (i == j) continue;
+                a[i][j] = edge_exists(g, i, j) ? -1 : 0;
+              }
             }
 
             i64 prev = 1;
@@ -218,52 +225,137 @@ subsections:
       - type: listing
         id: lst.simulator
         language: C++
-        caption: 'Параллельный цикл симуляции'
+        caption: 'run\_trials\_range --- испытание в одном потоке'
         content: |
-          void run_simulation(const SimulatorConfig& config,
-                              SimulatorResult& result)
+          static void run_trials_range(
+              i32 start, i32 end,
+              const SimulatorConfig& config,
+              Accum* accums,
+              std::mutex* mu,
+              std::atomic<i32>* progress)
           {
-              int threads = std::thread::hardware_concurrency();
-              std::vector<std::thread> pool;
-              std::mutex mutex;
-              Accum global_accums[7] = {};
+            OSMemory os;   os.init();
+            VirtualHeap heap;   heap.init(os, kHeapSize);
+            ArenaAllocator arena;   arena.init(heap.take(kHeapSize));
+            ArenaResource res(&arena);
 
-              for (int t = 0; t < threads; t++) {
-                  pool.emplace_back([&, t]() {
-                      VirtualHeap heap;
-                      heap.init(g_os_memory, megabytes(4));
-                      ArenaAllocator arena;
-                      arena.init(heap.take(megabytes(4)));
+            std::mt19937 rng(config.seed ^ start);
+            Accum local[kMetricCount];
 
-                      std::mt19937 rng(config.seed ^ t);
+            for (i32 trial = start; trial < end; trial++) {
+              auto mark = arena.save();
 
-                      Accum local_accums[7] = {};
-                      int trials_per_thread = config.total_trials / threads;
+              Graph g = make_graph(arena, config.n);
+              generate_graph(g, rng, config.edge_length,
+                             config.graph_density);
 
-                      for (int i = 0; i < trials_per_thread; i++) {
-                          auto mark = arena.save();
-
-                          Graph graph;
-                          generate_graph(graph, config, rng, arena);
-
-                          for (int m = 0; m < 7; m++) {
-                              if (config.metrics[m]) {
-                                  double value = compute_metric(
-                                      static_cast<Metric>(m), graph, arena);
-                                  local_accums[m].add(value);
-                              }
-                          }
-
-                          arena.restore(mark);
-                      }
-
-                      std::lock_guard lock(mutex);
-                      for (int m = 0; m < 7; m++)
-                          global_accums[m].merge(local_accums[m]);
-                  });
+              const AdjList* adj_ptr = nullptr;
+              AdjList adj(0, std::pmr::vector<AdjNode>(&res), &res);
+              if (needs_adj(config.metrics)) {
+                adj = make_adj_list(g, &res);
+                adj_ptr = &adj;
               }
 
-              for (auto& t : pool) t.join();
+              CycleStats cycle_stats{};
+              if (needs_cycle(config.metrics))
+                cycle_stats = find_cycle_stats(g);
+
+              if (config.metrics[static_cast<int>(Metric::kMstWeight)])
+                local[static_cast<int>(Metric::kMstWeight)].add(
+                    static_cast<double>(mst_weight(g)));
+              if (config.metrics[static_cast<int>(Metric::kLongestCycleEdges)])
+                local[static_cast<int>(Metric::kLongestCycleEdges)].add(
+                    static_cast<double>(cycle_stats.longest_by_edges));
+              if (config.metrics[static_cast<int>(Metric::kHeaviestCycleEdges)])
+                local[static_cast<int>(Metric::kHeaviestCycleEdges)].add(
+                    static_cast<double>(cycle_stats.edge_count_of_heaviest));
+              if (config.metrics[static_cast<int>(Metric::kIsolatedVertices)])
+                local[static_cast<int>(Metric::kIsolatedVertices)].add(
+                    static_cast<double>(count_isolated_vertices(g)));
+              if (config.metrics[static_cast<int>(Metric::kSpanningTrees)])
+                local[static_cast<int>(Metric::kSpanningTrees)].add(
+                    static_cast<double>(count_spanning_trees(g)));
+              if (config.metrics[static_cast<int>(Metric::kConnectedComponents)])
+                local[static_cast<int>(Metric::kConnectedComponents)].add(
+                    static_cast<double>(count_connected_components(*adj_ptr)));
+              if (config.metrics[static_cast<int>(Metric::kCliqueComponents)])
+                local[static_cast<int>(Metric::kCliqueComponents)].add(
+                    static_cast<double>(count_clique_components(g, *adj_ptr)));
+
+              arena.restore(mark);
+              progress->fetch_add(1, std::memory_order_relaxed);
+            }
+
+            {
+              std::lock_guard lock(*mu);
+              for (i32 m = 0; m < kMetricCount; m++) {
+                accums[m].sum += local[m].sum;
+                accums[m].sum_sq += local[m].sum_sq;
+                accums[m].count += local[m].count;
+              }
+            }
+
+            arena.destroy();
+            heap.destroy();
+            os.destroy();
+          }
+
+      - type: listing
+        id: lst.simulator_main
+        language: C++
+        caption: 'run\_simulation --- создание потоков'
+        content: |
+          SimulatorResult run_simulation(const SimulatorConfig& config) {
+            i32 trials = precision_to_trials(config.precision);
+            i32 hw_threads = static_cast<i32>(
+                std::thread::hardware_concurrency());
+            i32 num_threads = hw_threads < 1 ? 1 : hw_threads;
+
+            bool any_metric = false;
+            for (i32 m = 0; m < kMetricCount; m++)
+              if (config.metrics[m]) { any_metric = true; break; }
+
+            SimulatorResult result{};
+            if (!any_metric) return result;
+
+            Accum accums[kMetricCount];
+            std::mutex mu;
+            std::atomic<i32> progress{0};
+            std::atomic<bool> prog_done{false};
+            std::thread prog_thread(progress_thread_fn,
+                &progress, &prog_done, trials);
+
+            if (num_threads == 1) {
+              run_trials_range(0, trials, config,
+                               accums, &mu, &progress);
+            } else {
+              std::vector<std::thread> threads;
+              threads.reserve(num_threads);
+
+              i32 chunk = trials / num_threads;
+              i32 rem = trials % num_threads;
+              i32 offset = 0;
+
+              for (i32 t = 0; t < num_threads; t++) {
+                i32 count = chunk + (t < rem ? 1 : 0);
+                threads.emplace_back(run_trials_range,
+                    offset, offset + count,
+                    std::cref(config), accums, &mu, &progress);
+                offset += count;
+              }
+              for (auto& th : threads) th.join();
+            }
+
+            prog_done.store(true, std::memory_order_relaxed);
+            prog_thread.join();
+
+            for (i32 m = 0; m < kMetricCount; m++) {
+              if (config.metrics[m]) {
+                result.results[m] = accums[m].finalize();
+                result.computed[m] = true;
+              }
+            }
+            return result;
           }
 
       - type: paragraph

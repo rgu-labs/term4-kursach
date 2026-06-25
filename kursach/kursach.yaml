@@ -23,6 +23,7 @@ style: !import "style/style.yaml"
 
 document:
   - !import "sections/intro.yaml"
+  - !import "sections/theory.yaml"
   - !import "sections/task01.yaml"
   - !import "sections/task02.yaml"
   - !import "sections/task03.yaml"

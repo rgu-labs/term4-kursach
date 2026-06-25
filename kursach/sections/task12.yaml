@@ -1,5 +1,5 @@
 id: task12
-title: 'Моделирование Бюффона'
+title: 'Задача 12. Моделирование Бюффона'
 numbered: true
 body:
   - type: paragraph
@@ -53,6 +53,59 @@ subsections:
               bool crosses = x <= (m_L / 2.0) * std::sin(phi);
               return {x, phi, crosses};
           }
+
+  - id: task12_analytical
+    title: "Аналитический вывод вероятности пересечения"
+    numbered: true
+    body:
+      - type: paragraph
+        text: |
+          Рассмотрим классический вывод вероятности пересечения иглой линии
+          в задаче Бюффона. Пусть $d$ — расстояние между параллельными линиями,
+          $L$ — длина иглы ($L \le d$). Положение иглы характеризуется двумя
+          независимыми случайными величинами:
+
+      - type: list
+        ordered: false
+        items:
+          - '$x$ — расстояние от середины иглы до ближайшей линии, $x \sim U(0, d/2)$;'
+          - '$\varphi$ — острый угол между иглой и линией, $\varphi \sim U(0, \pi/2)$.'
+
+      - type: paragraph
+        text: |
+          Игла пересекает линию, если проекция её половины на вертикаль не
+          меньше расстояния до линии:
+
+      - type: formula
+        id: eq.buffon_condition
+        content: |-
+          x \le \frac{L}{2} \sin \varphi
+
+      - type: paragraph
+        text: |
+          Вероятность пересечения есть отношение площади области, удовлетворяющей
+          условию, к площади всего прямоугольника $[0, d/2] \times [0, \pi/2]$
+          в пространстве параметров $(x, \varphi)$:
+
+      - type: formula
+        id: eq.buffon_integral
+        content: |-
+          P_{\text{cross}} = \frac{1}{\frac{d}{2} \cdot \frac{\pi}{2}}
+          \iint\limits_{x \le \frac{L}{2}\sin\varphi} dx\,d\varphi
+          = \frac{4}{\pi d} \int_{0}^{\pi/2} \frac{L}{2} \sin\varphi \, d\varphi
+
+      - type: formula
+        id: eq.buffon_result
+        content: |-
+          P_{\text{cross}} = \frac{2L}{\pi d} \int_{0}^{\pi/2} \sin\varphi \, d\varphi
+          = \frac{2L}{\pi d}
+
+      - type: paragraph
+        text: |
+          Таким образом, точная вероятность пересечения линии иглой Бюффона
+          равна $2L/(\pi d)$. Этот результат позволяет не только верифицировать
+          стохастическое моделирование, но и оценивать число $\pi$ методом
+          Монте-Карло: $\hat{\pi} \approx 2L / (d \cdot \hat{P}_{\text{cross}})$.
 
   - id: task12_gui
     title: "Графический интерфейс"

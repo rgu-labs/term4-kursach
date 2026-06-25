@@ -1,5 +1,5 @@
 id: task01
-title: "Выбор символа из алфавита"
+title: "Задача 1. Выбор символа из алфавита"
 numbered: true
 body:
   - type: paragraph
