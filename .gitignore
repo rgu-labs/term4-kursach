@@ -1,3 +1,33 @@
+# Build outputs
 /bin/
 /target/
 /tmp/
+
+# Task build dirs (CMake, Ninja)
+build_release/
+build*/
+cmake-build-*/
+
+# kursach org -> xelatex output
+kursach/*.tex
+kursach/*.pdf
+kursach/*.aux
+kursach/*.log
+kursach/*.out
+kursach/*.toc
+kursach/*.lof
+kursach/*.lol
+kursach/*.fls
+kursach/*.fdb_latexmk
+kursach/*.synctex.gz
+kursach/*.bbl
+kursach/*.blg
+kursach/*.nav
+kursach/*.snm
+kursach/*.vrb
+kursach/missfont.log
+kursach/texput.log
+kursach/_minted*/
+
+# kursach-autogen output (yaml -> LaTeX -> PDF)
+kursach/out/
