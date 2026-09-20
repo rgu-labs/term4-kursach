@@ -9,8 +9,6 @@ build*/
 cmake-build-*/
 
 # kursach org -> xelatex output
-kursach/*.tex
-kursach/*.pdf
 kursach/*.aux
 kursach/*.log
 kursach/*.out
