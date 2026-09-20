@@ -6,6 +6,8 @@
 
 #include <implot.h>
 
+#include <algorithm>
+
 #include <vector>
 
 int main()
@@ -57,7 +59,54 @@ int main()
 
       if (ImPlot::BeginPlot("CDF"))
       {
-          ImPlot::PlotStairs("F(X)", x.data(), y_cdf.data(), static_cast<int>(x.size()));
+          const int n = static_cast<int>(y_cdf.size());
+          const double left =
+              x.front() - 1.0 < 0.0 ? x.front() - 1.0 : -1.0;
+          const double right = x.back() + 0.75;
+
+          ImPlot::SetupAxesLimits(left, right, -0.15, 1.15, ImGuiCond_Always);
+
+          ImDrawList* dl = ImPlot::GetPlotDrawList();
+          const ImU32 color = ImGui::GetColorU32(ImGuiCol_PlotLines);
+
+          const auto dashed_vertical = [dl, color](const ImVec2& a,
+                                                   const ImVec2& b) {
+              const float dash = 6.0f;
+              const float gap = 4.0f;
+              const float step = dash + gap;
+              const float x_pix = a.x;
+              const float y_lo = std::min(a.y, b.y);
+              const float y_hi = std::max(a.y, b.y);
+              for (float y = y_lo; y < y_hi; y += step) {
+                  dl->AddLine(ImVec2(x_pix, y),
+                              ImVec2(x_pix, std::min(y + dash, y_hi)),
+                              color, 1.0f);
+              }
+          };
+
+          const auto solid_horizontal = [dl, color](double x0, double y,
+                                                    double x1) {
+              dl->AddLine(ImPlot::PlotToPixels(x0, y),
+                          ImPlot::PlotToPixels(x1, y), color, 2.0f);
+          };
+
+          const auto hollow_point = [dl, color](double x0, double y) {
+              dl->AddCircle(ImPlot::PlotToPixels(x0, y), 5.0f, color, 32, 1.5f);
+          };
+
+          solid_horizontal(left, 0.0, x.front());
+
+          for (int i = 0; i < n; i++) {
+              const double prev = i == 0 ? 0.0 : y_cdf[i - 1];
+              const double cur = y_cdf[i];
+              const double next_x = i + 1 < n ? x[i + 1] : right;
+
+              dashed_vertical(ImPlot::PlotToPixels(x[i], prev),
+                              ImPlot::PlotToPixels(x[i], cur));
+              hollow_point(x[i], cur);
+              solid_horizontal(x[i], cur, next_x);
+          }
+
           ImPlot::EndPlot();
       }
 

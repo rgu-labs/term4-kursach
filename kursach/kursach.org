@@ -106,19 +106,6 @@
 - реализовать пользовательский интерфейс для управления параметрами моделирования;
 - провести численные эксперименты и сравнить эмпирические результаты с теоретическими.
 
-** Используемые технологии
-
-Программная реализация выполнена на языке =C++= стандарта =C++23= с использованием следующих библиотек и инструментов:
-
-- =CMake= ([[https://github.com/Kitware/CMake]]) --- система сборки проекта;
-- =Qt6 Quick= ([[https://github.com/qt/qtdeclarative]]) --- фреймворк для разработки графического интерфейса;
-- =GLFW= ([[https://github.com/glfw/glfw]]) --- создание окна и контекста OpenGL;
-- =Dear ImGui= ([[https://github.com/ocornut/imgui]]) --- графический интерфейс;
-- =ImPlot= ([[https://github.com/epezent/implot]]) --- визуализация графиков;
-- =nlohmann::json= ([[https://github.com/nlohmann/json]]) --- парсинг конфигурационных файлов;
-
-Все разработанные приложения устойчивы к аварийным завершениям, предусмотрена обработка ошибок ввода-вывода и некорректных параметров.
-
 ** Структура пояснительной записки
 
 Документ имеет следующую структуру:
@@ -163,11 +150,11 @@ $$P(X = x_k) \propto \begin{cases} \dfrac{2(x_k - a)}{(c-a)(b-a)}, & a \le x_k \
 
 *Непрерывное равномерное распределение.*
 
-$$f(x) = \frac{1}{b-a}, \quad x \in [a, b]$$
+$$f(x) = \begin{cases} \dfrac{1}{b-a}, & x \in [a, b], \\[6pt] 0, & x \notin [a, b] \end{cases}$$
 
 Непрерывное равномерное распределение задаётся плотностью вероятности, постоянной на отрезке $[a, b]$. Величина $U \sim U(0,1)$ является базовой для генерации всех остальных распределений, поскольку любое преобразование случайной величины $U$ даёт новую случайную величину с заданным законом. В работе $U(0,1)$ используется в задаче\nbsp{}5 для генерации символов кластера по заданному распределению на алфавите.
 
-** Метод Монте-Карло и закон больших чисел
+** Метод Монте-Карло
 
 Метод Монте-Карло --- численный метод, основанный на многократной реализации случайного процесса с последующим усреднением.
 Пусть $\nu_n$ --- число появлений события $A$ в $n$ независимых испытаниях, и $p = P(A)$ --- теоретическая вероятность. Согласно *теореме Бернулли*, для любого $\varepsilon > 0$:
@@ -210,7 +197,7 @@ $$P(\text{оба чётных}) = \frac{\lfloor N/2 \rfloor}{N} \cdot \frac{\lfl
 
 *** Эмпирическая проверка
 
-Программа принимает два параметра командной строки: мощность алфавита $N$ и количество экспериментов $C$. Для генерации случайных чисел используется Вихрь Мерсенна (=std::mt19937=). Запуск серии экспериментов выполняется через вспомогательный класс =TaskRunner=.
+Программа принимает два параметра командной строки: мощность алфавита $N$ и количество экспериментов $C$. Для генерации псевдослучайных чисел используется Вихрь Мерсенна (=std::mt19937=). Запуск серии экспериментов выполняется через вспомогательный класс =TaskRunner=.
 
 #+CAPTION: Эксперимент с фиксированными индексами
 #+BEGIN_SRC cpp
@@ -602,6 +589,8 @@ int PointWalkSimulation::count_crossings(
 $$a + b = k, \quad 1 \le a \le n-1, \quad 1 \le b \le n-1$$
 $$\operatorname{suffix}_a(C_i) \oplus \operatorname{prefix}_b(C_{i+1}) = P$$
 
+Здесь $\oplus$ --- оператор конкатенации строк.
+
 *** Алгоритм проверки соединяемости
 
 #+CAPTION: Метод проверки соединяемости двух соседних кластеров
@@ -700,7 +689,23 @@ double StaircaseSimulation::sample_one() {
         return d(m_rng) * tau;
     }
     case Distribution::DiscreteTriangular: {
-        // ... обратное преобразование
+        double a = m_cfg.tri_a, peak = m_cfg.tri_b, c = m_cfg.tri_c;
+        if (a >= c) {
+            std::uniform_int_distribution<int> d(0, n);
+            return d(m_rng) * tau;
+        }
+        peak = std::max(a, std::min(peak, c));
+        std::uniform_real_distribution<double> u01(0.0, 1.0);
+        double u = u01(m_rng);
+        double Fc = (peak - a) / (c - a);
+        double sample;
+        if (u < Fc)
+            sample = a + std::sqrt(u * (c - a) * (peak - a));
+        else
+            sample = c - std::sqrt((1.0 - u) * (c - a) * (c - peak));
+        int best = static_cast<int>(
+            std::round((sample - a) / (c - a) * n));
+        best = std::max(0, std::min(best, n));
         return best * tau;
     }
     }
@@ -768,8 +773,6 @@ WalkResult ComplexWalkSimulation::run_single() {
 }
 #+END_SRC
 
-#+RESULTS:
-
 #+CAPTION: Генерация индекса направления для треугольного распределения
 #+BEGIN_SRC cpp
 int ComplexWalkSimulation::sample_xi_triangular() {
@@ -818,46 +821,44 @@ $$P(X = k) = \binom{n}{k} p^k (1-p)^{n-k}$$
 
 Задача реализована в виде консольного приложения, использующего шаблонный класс =TaskRunner=.
 
-#+CAPTION: Лямбда-функция одного испытания
+#+CAPTION: Полная программа моделирования взрыва бочки
 #+BEGIN_SRC cpp
-auto experiment = [p, p1, n](auto& rng) -> bool {
-    std::bernoulli_distribution hit(p);
+static void print_usage(const char* prog) {
+    std::println("Usage:");
+    std::println("  {} <p> <p1> <n> <simulations>", prog);
+}
 
-    int hits = 0;
-    for (int i = 0; i < n; i++)
-        if (hit(rng)) ++hits;
-
-    if (hits == 0) return false;
-    if (hits >= 2) return true;
-
-    return std::bernoulli_distribution(p1)(rng);
-};
-#+END_SRC
-
-#+CAPTION: Основная функция с разбором аргументов
-#+BEGIN_SRC cpp
 int main(int argc, char** argv) {
     if (argc != 5) { print_usage(argv[0]); return 1; }
 
-    double p   = std::stod(argv[1]);
-    double p1  = std::stod(argv[2]);
-    int    n   = std::stoi(argv[3]);
-    size_t sim = std::stoull(argv[4]);
+    double p  = std::strtod(argv[1], nullptr);
+    double p1 = std::strtod(argv[2], nullptr);
+    int    n  = std::strtol(argv[3], nullptr, 10);
+    size_t sim = static_cast<size_t>(
+        std::strtoull(argv[4], nullptr, 10));
 
-    auto experiment = /* ... lambda above ... */;
+    auto experiment = [p, p1, n](auto& rng) {
+        std::bernoulli_distribution hit(p);
+
+        int hits = 0;
+        for (int i = 0; i < n; i++) {
+            if (hit(rng)) ++hits;
+        }
+
+        if (hits == 0) return false;
+        if (hits >= 2) return true;
+
+        return std::bernoulli_distribution(p1)(rng);
+    };
 
     TaskRunner runner;
     auto results = runner.run(experiment, sim);
 
-    auto freq = tally(results);
-    size_t explosions = freq[true];
-    double p_explosion = 1.0 * explosions / sim;
-
-    std::println("P(barrel explodes) = {:.6f}",
-                 p_explosion);
-    std::println("P(barrel survives) = {:.6f}",
-                 1.0 - p_explosion);
-
+    auto counts = tally(results);
+    std::print("P(barrel explodes) = {:.6f}\n",
+               static_cast<double>(counts[true]) / sim);
+    std::print("P(barrel survives) = {:.6f}\n",
+               static_cast<double>(counts[false]) / sim);
     return 0;
 }
 #+END_SRC
@@ -874,15 +875,17 @@ int main(int argc, char** argv) {
 
 *** Математическая модель
 
-Задано конечное пространство сообщений $M = \{m_1, \ldots, m_{|M|}\}$ с априорным распределением $P(m)$ и пространство ключей $K = \{k_1, \ldots, k_{|K|}\}$ с распределением $P(k)$. Шифрование выполняется детерминированной функцией $c = E(m, k)$.
+Задано конечное пространство сообщений $T = \{m_1, \ldots, m_{|T|}\}$ с априорным распределением $P(M = m)$ и пространство ключей $K = \{k_1, \ldots, k_{|K|}\}$ с распределением $P(Key = k)$. Шифрование выполняется детерминированной функцией $c = E_k(m)$.
 
 Рассматриваются два алгоритма шифрования:
 
-$$c_i = (m_i + k_{i \bmod |k|}) \bmod 26 \quad \text{(Виженер)}$$
+$$c_i = (m_i + k^{(i \bmod |k|)}) \bmod 26 \quad \text{(Виженер)}$$
 
-$$c_i = (m_i \oplus k_{i \bmod |k|}) \bmod 26 \quad \text{(Вернам)}$$
+$$c_i = (m_i \oplus k^{(i \bmod |k|)}) \bmod 26 \quad \text{(Вернам)}$$
 
-*Шенноновская совершенная секретность.* Шифр обладает совершенной секретностью, если для всех $m \in M$, $c \in C$:
+где $k^{(t)}$ --- $t$-й символ ключа $k \in K$, а $|k|$ --- длина ключа.
+
+*Шенноновская совершенная секретность.* Шифр обладает совершенной секретностью, если для всех $m \in T$, $c \in C$:
 
 $$P(M = m | C = c) = P(M = m)$$
 
@@ -901,21 +904,50 @@ void analyze(
     const std::string& target_msg,
     bool use_vigenere)
 {
-    double p_cipher = 0.0;
-    for (size_t j = 0; j < msgs.size(); j++)
-        for (size_t s = 0; s < keys.size(); s++)
-            if (encrypt(msgs[j], keys[s], use_vigenere)
-                    == target_cipher)
-                p_cipher += msg_probs[j] * key_probs[s];
+    auto encrypt = [&](const std::string& m, const std::string& k) {
+        return use_vigenere
+                   ? vigenere_encrypt(m, k)
+                   : vernam_encrypt(m, k);
+    };
 
-    double p_c_given_m = 0.0;
-    for (size_t s = 0; s < keys.size(); s++)
-        if (encrypt(target_msg, keys[s], use_vigenere)
-                == target_cipher)
-            p_c_given_m += key_probs[s];
+    std::map<std::string, double> p_cipher;
+    std::map<std::string, std::map<std::string, double>>
+        p_cipher_given_msg;
 
-    double p_m_given_c =
-        p_c_given_m * msg_probs[/* idx */] / p_cipher;
+    for (size_t j = 0; j < msgs.size(); ++j)
+        for (size_t s = 0; s < keys.size(); ++s) {
+            std::string c = encrypt(msgs[j], keys[s]);
+            p_cipher[c] += msg_probs[j] * key_probs[s];
+            p_cipher_given_msg[msgs[j]][c] += key_probs[s];
+        }
+
+    double pm = 0.0;
+    for (size_t j = 0; j < msgs.size(); ++j)
+        if (msgs[j] == target_msg) {
+            pm = msg_probs[j];
+            break;
+        }
+
+    double pc = p_cipher.count(target_cipher) > 0
+                    ? p_cipher.at(target_cipher)
+                    : 0.0;
+    double pcm =
+        (p_cipher_given_msg.count(target_msg) > 0 &&
+         p_cipher_given_msg.at(target_msg)
+             .count(target_cipher) > 0)
+            ? p_cipher_given_msg.at(target_msg)
+                  .at(target_cipher)
+            : 0.0;
+    double pmc = (pc > 0.0) ? (pcm * pm / pc) : 0.0;
+
+    std::println("  P(Cipher='{}')             = {:.4f}",
+                 target_cipher, pc);
+    std::println("  P(Cipher='{}'|M='{}') = {:.4f}",
+                 target_cipher, target_msg, pcm);
+    std::println("  P(M='{}'|Cipher='{}') = {:.4f}",
+                 target_msg, target_cipher, pmc);
+    std::println("  Perfect secrecy?           = {}",
+                 std::abs(pmc - pm) < 1e-9 ? "YES" : "NO");
 }
 #+END_SRC
 
@@ -966,35 +998,35 @@ $$P(\text{4-й орёл} \mid \text{первые 3 орла}) = \frac{P(4H)}{P(3
 
 *** Программная реализация
 
-#+CAPTION: Лямбда-функция испытания: выбор монеты и четыре броска
-#+BEGIN_SRC cpp
-auto experiment = [n, k](auto& rng)
-    -> std::pair<bool, bool>
-{
-    std::uniform_int_distribution<int> coin_dist(0, n - 1);
-    std::bernoulli_distribution fair(0.5);
-
-    int coin = coin_dist(rng);
-    bool double_headed = (coin < k);
-
-    bool t1 = double_headed ? true : fair(rng);
-    bool t2 = double_headed ? true : fair(rng);
-    bool t3 = double_headed ? true : fair(rng);
-    bool t4 = double_headed ? true : fair(rng);
-
-    bool first_three = t1 && t2 && t3;
-    return {first_three, first_three && t4};
-};
-#+END_SRC
-
-#+CAPTION: Основная функция: оценка вероятности
+#+CAPTION: Полная программа оценки условной вероятности
 #+BEGIN_SRC cpp
 int main(int argc, char** argv) {
+    if (argc != 4) {
+        std::println("Usage: {} <n> <k> <experiments>", argv[0]);
+        return 1;
+    }
+
     int n = std::stoi(argv[1]);
     int k = std::stoi(argv[2]);
     size_t sim = std::stoull(argv[3]);
 
-    auto experiment = /* ... */;
+    auto experiment = [n, k](auto& rng)
+        -> std::pair<bool, bool>
+    {
+        std::uniform_int_distribution<int> coin_dist(0, n - 1);
+        std::bernoulli_distribution fair(0.5);
+
+        int coin = coin_dist(rng);
+        bool double_headed = (coin < k);
+
+        bool t1 = double_headed ? true : fair(rng);
+        bool t2 = double_headed ? true : fair(rng);
+        bool t3 = double_headed ? true : fair(rng);
+        bool t4 = double_headed ? true : fair(rng);
+
+        bool first_three = t1 && t2 && t3;
+        return {first_three, first_three && t4};
+    };
 
     TaskRunner runner;
     auto results = runner.run(experiment, sim);
@@ -1005,9 +1037,8 @@ int main(int argc, char** argv) {
         if (full)  four_heads++;
     }
 
-    double p = 1.0 * four_heads / three_heads;
-    std::println(
-        "P(4th heads | first 3 heads) = {:.6f}", p);
+    std::print("P(4th heads | first 3 heads) = {:.6f}\n",
+               1.0 * four_heads / three_heads);
     return 0;
 }
 #+END_SRC
@@ -1025,6 +1056,10 @@ int main(int argc, char** argv) {
 *** Математическая модель
 
 Дискретная случайная величина $X$ задаётся множеством пар «значение---вероятность»: $\{(x_1, p_1), (x_2, p_2), \ldots, (x_n, p_n)\}$.
+
+При задании случайной величины обязано выполняться условие нормировки --- сумма всех вероятностей должна равняться единице:
+
+$$\sum_{i=1}^{n} p_i = 1, \quad p_i > 0, \quad x_i \neq x_j \ \ (i \neq j)$$
 
 $$\mu = \mathbb{E}[X] = \sum_{i=1}^{n} x_i \cdot p_i$$
 
@@ -1143,15 +1178,189 @@ NeedleResult NeedleSimulation::run_single() {
 
 *** Математическая модель
 
-Генерируется неориентированный взвешенный граф $G = (V, E)$ с $|V| = n$ вершинами. Для каждой пары вершин $(i, j)$, $i < j$, независимо:
+Генерируется неориентированный взвешенный граф $G = (V, E)$ с $|V| = n$ вершинами, где $n \in \mathbb{N}$ --- параметр конфигурации. Множество возможных рёбер образуют все неупорядоченные пары вершин $(i, j)$, $i < j$; всего таких пар $C_n^2 = n(n-1)/2$. Для каждой пары независимо разыгрываются наличие ребра и его вес.
 
-$$P(e_{ij} \neq 0) = d, \qquad w_{ij} \sim U\{1, 2, \ldots, L\}$$
+Сначала определяется, существует ли ребро: из равномерного распределения извлекается $u \sim U(0, 1)$, и ребро объявляется присутствующим, если $u < d$; в противном случае $w_{ij} = 0$ и ребра нет. Существующему ребру присваивается целый вес, равномерно распределённый на множестве $\{1, 2, \ldots, L\}$ (по условию задачи $L = 10$, хотя конфигурация допускает и другие значения). Итоговая схема генерации:
 
-где $d$ --- плотность графа, $L$ --- максимальный вес ребра. Вес $w_{ij} = 0$ означает отсутствие ребра.
+$$w_{ij} = \begin{cases} U\{1, 2, \ldots, L\}, & U(0,1) < d, \\ 0, & \text{иначе}, \end{cases} \qquad P(e_{ij} \neq 0) = d$$
+
+Параметр $d$ называется плотностью графа и представляет собой вероятность наличия отдельного ребра. Число рёбер $m$ имеет биномиальное распределение $m \sim \mathrm{Bin}(C_n^2, d)$ с математическим ожиданием $\mathbb{E}[m] = d \cdot n(n-1)/2$, поэтому фактическая плотность конкретного графа $m/C_n^2$ флуктуирует вокруг $d$. При $d = 1$ граф является полным, при $d = 0$ --- пустым. Вес ребра не влияет на его наличие и разыгрывается независимо.
+
+Для каждого сгенерированного графа вычисляются следующие характеристики:
+
+| Метрика                         | Алгоритм          | Сложность   |
+|---------------------------------+------------------+------------|
+| Вес минимального остовного дерева | Прима            | $O(n^2)$   |
+| Длина макс. цикла по рёбрам      | DFS              | $O(n!)$    |
+| Число рёбер макс. цикла по весам  | DFS              | $O(n!)$    |
+| Изолированные вершины            | Перебор          | $O(n^2)$   |
+| Остовные деревья                 | Алгоритм Барейсса | $O(n^3)$   |
+| Компоненты связности             | BFS              | $O(n^2)$   |
+| Кликовые компоненты              | BFS + проверка    | $O(n^2+m)$ |
+
+*** Алгоритмы вычисления метрик
+
+*Сумма весов рёбер минимального остовного дерева.* Остовное дерево связного графа --- это подграф без циклов, содержащий все его вершины; вес остовного дерева равен сумме весов входящих в него рёбер. Минимальное остовное дерево строится жадным алгоритмом Прима: множество уже включённых вершин последовательно дополняется вершиной, соединённой с деревом ребром минимального веса:
+
+$$A = \text{MST}(G) = \sum_{v \in V} \min_{u \in S,\, (u,v) \in E} w(u, v),$$
+
+где $S$ --- множество вершин, уже включённых в MST. Алгоритм поддерживает массив =key[v]= --- минимальный вес ребра, соединяющего $v$ с текущим деревом, --- и массив =in_mst[v]= --- флаг включения вершины. На каждом шаге выбирается непомеченная вершина с минимальным ключом, её ключ добавляется к общему весу, после чего ключи всех её соседей обновляются. Если граф несвязен, минимальный ключ на очередном шаге равен =kInf=, и цикл прерывается. Благодаря матричному представлению графа сложность составляет $O(n^2)$.
+
+#+CAPTION: Алгоритм Прима для вычисления веса MST
+#+BEGIN_SRC cpp
+i32 mst_weight(const Graph& g) {
+  i32 n = g.n;
+  if (n <= 1) return 0;
+
+  constexpr i32 kInf = std::numeric_limits<i32>::max();
+  i32 key[n];
+  bool in_mst[n];
+  for (i32 i = 0; i < n; i++) {
+    key[i] = kInf;
+    in_mst[i] = false;
+  }
+  key[0] = 0;
+
+  i32 total = 0;
+  for (i32 iter = 0; iter < n; iter++) {
+    i32 u = -1;
+    for (i32 v = 0; v < n; v++)
+      if (!in_mst[v] && (u == -1 || key[v] < key[u]))
+        u = v;
+
+    if (key[u] == kInf) break;
+    in_mst[u] = true;
+    total += key[u];
+
+    for (i32 v = 0; v < n; v++) {
+      if (!in_mst[v] && edge_exists(g, u, v)) {
+        i32 w = static_cast<i32>(edge_weight(g, u, v));
+        if (w < key[v]) key[v] = w;
+      }
+    }
+  }
+  return total;
+}
+#+END_SRC
+
+Граф хранится в виде сжатой верхне-треугольной матрицы смежности: элементы $w_{ij}$ для всех пар $0 \le i < j < n$ упакованы в =std::span<u8>=, доступ к ребру выполняется по индексу за $O(1)$. Нулевой вес означает отсутствие ребра.
+
+*Поиск максимального цикла.* Длина цикла это --- число его рёбер, вес $W(C) = \sum_{(i,j) \in C} w_{ij}$ --- сумма весов ребер цикла. Задача о самом длинном простом цикле является NP-complete, поэтому решается программно полным перебором. Из всех найденных циклов удерживаются длина самого большого по числу рёбер цикла и число рёбер самого большого по сумме весов цикла. Число простых путей в худшем случае растёт как $O(n!)$, поэтому метод применим только при небольших $n$.
+
+#+CAPTION: Поиск максимального цикла
+#+BEGIN_SRC cpp
+struct CycleDfs {
+  const Graph& g;
+  bool* visited;
+  i32 path_len;
+  i32 best_edges;
+  i32 best_weight_edges;
+  i32 best_weight;
+};
+
+static void dfs(CycleDfs& s, i32 v, i32 start, i32 depth,
+                i32 weight_so_far) {
+  s.visited[v] = true;
+  s.path_len++;
+
+  for (i32 u = 0; u < s.g.n; u++) {
+    if (u == v || !edge_exists(s.g, v, u)) continue;
+    i32 w = static_cast<i32>(edge_weight(s.g, v, u));
+
+    if (u == start && depth >= 2) {
+      i32 cycle_edges = s.path_len;
+      i32 cycle_weight = weight_so_far + w;
+      if (cycle_edges > s.best_edges)
+        s.best_edges = cycle_edges;
+      if (cycle_weight > s.best_weight) {
+        s.best_weight = cycle_weight;
+        s.best_weight_edges = cycle_edges;
+      }
+      continue;
+    }
+
+    if (!s.visited[u])
+      dfs(s, u, start, depth + 1, weight_so_far + w);
+  }
+
+  s.path_len--;
+  s.visited[v] = false;
+}
+
+CycleStats find_cycle_stats(const Graph& g) {
+  i32 n = g.n;
+  bool visited[n];
+
+  CycleDfs s{.g = g, .visited = visited, .path_len = 0,
+             .best_edges = 0, .best_weight_edges = 0,
+             .best_weight = 0};
+
+  for (i32 start = 0; start < n; start++) {
+    for (i32 i = 0; i < n; i++) visited[i] = false;
+    s.path_len = 0;
+    dfs(s, start, start, 0, 0);
+  }
+
+  return CycleStats{.longest_by_edges = s.best_edges,
+                    .edge_count_of_heaviest = s.best_weight_edges};
+}
+#+END_SRC
+
+*Количество остовных деревьев.* Число $F = \tau(G)$ вычисляется по матричной теореме Кирхгофа: оно равно определителю редуцированной матрицы Лапласа $L'$ размера $(n-1) \times (n-1)$, получаемой из матрицы Кирхгофа удалением последней строки и столбца:
+
+$$L'_{ij} = \begin{cases} \deg(i), & i = j, \\ -1, & (i,j) \in E, \\ 0, & \text{иначе} \end{cases}$$
+
+Определитель находится алгоритмом Барейсса:
+
+$$a_{i,j}^{(k+1)} = \frac{a_{i,j}^{(k)} \cdot a_{k,k}^{(k)} - a_{i,k}^{(k)} \cdot a_{k,j}^{(k)}}{a_{k-1,k-1}^{(k-1)}}$$
+
+Если в ходе исключения на главной диагонали встретился ноль, граф несвязен и $\tau(G) = 0$. Сложность $O(n^3)$.
+
+#+CAPTION: Подсчёт остовных деревьев методом Барейсса
+#+BEGIN_SRC cpp
+i64 count_spanning_trees(const Graph& g) {
+  i32 n = g.n;
+  if (n <= 1) return 1;
+
+  i32 m = n - 1;
+  std::vector<std::vector<i64>> a(m, std::vector<i64>(m, 0));
+
+  for (i32 i = 0; i < m; i++) {
+    i64 degree = 0;
+    for (i32 k = 0; k < n; k++)
+      if (k != i && edge_exists(g, i, k))
+        degree++;
+
+    a[i][i] = degree;
+
+    for (i32 j = 0; j < m; j++) {
+      if (i == j) continue;
+      a[i][j] = edge_exists(g, i, j) ? -1 : 0;
+    }
+  }
+
+  i64 prev = 1;
+  for (i32 k = 0; k < m; k++) {
+    if (a[k][k] == 0) return 0;
+    for (i32 i = k + 1; i < m; i++)
+      for (i32 j = k + 1; j < m; j++)
+        a[i][j] = (a[i][j] * a[k][k] -
+                   a[i][k] * a[k][j]) / prev;
+    prev = a[k][k];
+  }
+  return a[m - 1][m - 1];
+}
+#+END_SRC
+
+*Компоненты связности, изолированные вершины и полные подграфы.* Компоненты связности находятся поиском в ширину. Каждая вершина обрабатывается один раз, сложность $O(n^2)$.
+
+*Вершина называется изолированной*, если её степень равна нулю; число таких вершин подсчитывается перебором строк матрицы смежности за $O(n^2)$.
+
+*Количество компонент связности, являющихся полными подграфами исходного графа.* компонента является полным подграфом, если любая пара её вершин соединена ребром. Для каждой найденной компоненты перебираются все пары её вершин; если хотя бы одна пара не соединена, компонента полным подграфом не является. Суммарная сложность проверки --- $O(n^2 + m)$, где $m$ --- число рёбер графа.
 
 *** Программная реализация
 
-Приложение принимает JSON-конфигурацию и имя выходного файла. Количество испытаний определяется уровнем точности: =low= (1000), =medium= (10,000), =high= (100,000), =extreme= (1,000,000).
+Приложение принимает JSON-конфигурацию и имя выходного файла. В выходной JSON для каждой выбранной метрики записываются выборочное среднее =mean= и дисперсия =variance=. Количество испытаний определяется уровнем точности: =low= (1000), =medium= (10,000), =high= (100,000), =extreme= (1,000,000).
 
 #+CAPTION: Пример конфигурационного файла
 #+BEGIN_SRC json
@@ -1173,45 +1382,7 @@ $$P(e_{ij} \neq 0) = d, \qquad w_{ij} \sim U\{1, 2, \ldots, L\}$$
 }
 #+END_SRC
 
-*** Параллельная симуляция
-
-Испытания делятся на чанки по числу аппаратных потоков (=std::thread::hardware_concurrency()=). Каждый поток получает:
-
-- *свой генератор* (=mt19937=, сид = базовый XOR номер чанка) --- исключает корреляцию между потоками;
-- *свой аренный аллокатор* --- исключает гонки при выделении памяти;
-- *локальные аккумуляторы* --- запись без синхронизации.
-
-По завершении чанка локальные аккумуляторы сливаются в глобальные с синхронизацией через мьютекс. Прогресс отслеживается атомарным счётчиком.
-
-#+CAPTION: Ядро симуляции
-#+BEGIN_SRC cpp
-static void run_trials_range(
-    i32 start, i32 end,
-    const SimulatorConfig& config,
-    Accum* accums, std::mutex* mu,
-    std::atomic<i32>* progress)
-{
-  // инициализация
-  OSMemory os; os.init();
-  VirtualHeap heap; heap.init(os, kHeapSize);
-  ArenaAllocator arena;
-      arena.init(heap.take(kHeapSize));
-  ArenaResource res(&arena);
-  std::mt19937 rng(config.seed ^ start);
-
-  for (i32 trial = start; trial < end; trial++) {
-    auto mark = arena.save();       // точка восстановления
-
-    Graph g = make_graph(arena, n);
-    generate_graph(g, rng, L, d);
-    // ... вычисление метрик ...
-
-    arena.restore(mark);
-  }
-  // merge local[] → accums[] под мьютексом
-  arena.destroy(); heap.destroy(); os.destroy();
-}
-#+END_SRC
+Испытания распределяются между аппаратными потоками: диапазон испытаний делится на непересекающиеся чанки, каждый поток обрабатывает свой чанк с собственным генератором =mt19937= и локальными аккумуляторами, что исключает корреляцию последовательностей и синхронизацию при записи результатов. По завершении данных в чанке локальные накопленные суммы сливаются в глобальные под мьютексом. Память для очередного графа выделяется в аренном аллокаторе потока и освобождается сразу после обработки испытания.
 
 #+CAPTION: Результат статистического анализа случайного графа
 #+ATTR_LATEX: :width 0.9\textwidth :placement [H]
@@ -1221,11 +1392,11 @@ static void run_trials_range(
 
 * Вывод
 
-В ходе курсовой работы была выполнена программная реализация комплекса задач вероятностного моделирования. Разработано 13 приложений на языке =C++23=, охватывающих широкий спектр стохастических моделей: от простых схем Бернулли и дискретных распределений до сложных графовых алгоритмов и многоуровневых систем аллокаторов.
+В ходе курсовой работы была выполнена программная реализация задач вероятностного моделирования. Разработано 13 приложений на языке =C++23=, охватывающих широкий спектр вероятностных моделей.
 
 Для каждого задания были разработаны математические модели, реализованы алгоритмы численного моделирования методом Монте-Карло и проведены вычислительные эксперименты. Полученные эмпирические результаты сопоставлены с аналитическими формулами, что подтвердило корректность реализаций.
 
-Программная архитектура включает использование различных графических фреймворков (Qt6 Quick, GLFW + ImGui + ImPlot) и подходов к организации вычислений (многопоточность, аренные аллокаторы). Результаты работы демонстрируют эффективность стохастических методов для решения задач вероятностного моделирования.
+Программная архитектура включает использование различных графических фреймворков и подходов к организации вычислений. Результаты работы демонстрируют эффективность вероятностных методов для решения задач вероятностного моделирования.
 
 #+LATEX: \clearpage
 
@@ -1236,11 +1407,14 @@ static void run_trials_range(
 3. Qt 6 Documentation [Электронный ресурс]. --- Режим доступа: https://doc.qt.io/qt-6/ (дата обращения: 24.04.2026).
 4. Cornut O. Dear ImGui: Bloat-free Graphical User Interface for C++ [Электронный ресурс]. --- Режим доступа: https://github.com/ocornut/imgui (дата обращения: 24.04.2026).
 5. Lohmann N. JSON for Modern C++ (nlohmann/json) [Электронный ресурс]. --- Режим доступа: https://github.com/nlohmann/json (дата обращения: 24.04.2026).
+6. CMake Documentation [Электронный ресурс]. --- Режим доступа: https://github.com/Kitware/CMake (дата обращения: 24.04.2026).
+7. GLFW --- An OpenGL library [Электронный ресурс]. --- Режим доступа: https://github.com/glfw/glfw (дата обращения: 24.04.2026).
+8. Pezent E. ImPlot: Immediate Mode Plotting for Dear ImGui [Электронный ресурс]. --- Режим доступа: https://github.com/epezent/implot (дата обращения: 24.04.2026).
 
 #+LATEX: \clearpage
 
 * Приложение
 
-Исходный код всех разработанных приложений, а также исходные тексты настоящей пояснительной записки доступны в репозитории:
+Исходный код всех разработанных приложений, а также исходные тексты настоящей пояснительной записки в =pdf=, =org= и =tex= форматах доступны в репозитории:
 
 https://github.com/rgu-labs/term4-kursach
