@@ -142,6 +142,8 @@ $$P(X = k) = \frac{p(1-p)^k}{\sum_{i=0}^{n-1} p(1-p)^i}, \quad k = 0, \ldots, n-
 
 Геометрическое распределение описывает число неудач до первого успеха. В работе используется его усечённая версия для генерации значений шага блуждания с убывающей вероятностью в задачах\nbsp{}4,\nbsp{}6,\nbsp{}7.
 
+#+LATEX: \clearpage
+
 *Дискретное треугольное распределение.*
 
 $$P(X = x_k) \propto \begin{cases} \dfrac{2(x_k - a)}{(c-a)(b-a)}, & a \le x_k \le b, \\[6pt] \dfrac{2(c - x_k)}{(c-a)(c-b)}, & b \le x_k \le c \end{cases}$$
@@ -713,16 +715,6 @@ double StaircaseSimulation::sample_one() {
 }
 #+END_SRC
 
-#+CAPTION: Проверка строгой возрастаемости
-#+BEGIN_SRC cpp
-bool StaircaseSimulation::check_strictly_increasing(
-    const std::vector<double>& v) {
-    for (size_t i = 1; i < v.size(); i++)
-        if (v[i] <= v[i - 1]) return false;
-    return !v.empty();
-}
-#+END_SRC
-
 *** Графический интерфейс
 
 Приложение построено на Qt6 Quick. Боковая панель содержит настройки параметров и область статистики. Сгенерированные ступенчатые фигуры отображаются на сетке по 6 штук на страницу с пагинацией.
@@ -1074,6 +1066,8 @@ $$\gamma_2 = \frac{\mathbb{E}[(X - \mu)^4]}{\sigma^4} - 3 = \frac{\sum_{i=1}^{n}
 $$P(X + Y = z) = \sum_{x_i + y_j = z} p_i \cdot q_j$$
 
 $$P(X \cdot Y = z) = \sum_{x_i \cdot y_j = z} p_i \cdot q_j$$
+
+#+LATEX: \clearpage
 
 *** Программная реализация
 
